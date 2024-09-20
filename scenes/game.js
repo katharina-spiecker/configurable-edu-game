@@ -9,7 +9,7 @@ export default class MainGame extends Phaser.Scene {
     // player should move a little faster than the apples falling down otherwise too hard to catch
     this.playerSpeed = speedDown + 50;
     this.target = null;
-    this.points = 0;
+
     this.timedEvent = null;
     // where info is displayed
     this.textScore = null;
@@ -33,18 +33,15 @@ Phaser first calls the preload function which gives you the opportunity to prelo
   }
 
   create() {
-    // this.scene.pause("scene-game");
-    // adding an image to the canvas
-    // 3 arguments
+    // add points to global point registry in order to access scene
+    this.registry.set("points", 0)
     // x: The x-coordinate where the image will be placed. In this case, it's 0, which is the leftmost position on the screen.
     // y: The y-coordinate where the image will be placed. Here, it's also 0, which is the topmost position on the screen.
     // key: identifies the image to be used. The image associated with this key must be preloaded in the preload() method
     // setOrigin makes sure the top left corner of the image is in the top left corner of the screen
     // per default the image was cut off, because the center of the image was positioned at the top left corner
     this.add.image(0, 0, "backgroundImage").setOrigin(0, 0);
-    const startX = 0; // X position (left side of the screen)
-    const startY = sizes.height - 100; // Y position (100 pixels from the bottom)
-    this.player = this.physics.add.sprite(startX, startY, "basket");
+    this.player = this.physics.add.sprite(0, sizes.height - 100, "basket");
     this.player.setOrigin(0, 0);
     // should not move when collided with by other objects
     this.player.setImmovable(true);
@@ -60,6 +57,7 @@ Phaser first calls the preload function which gives you the opportunity to prelo
 
     this.physics.add.overlap(this.target, this.player, this.targetHit, null, this);
 
+    // for listening to moving left and right in update method
     this.cursor = this.input.keyboard.createCursorKeys();
 
     this.textScore = this.add.text(0, 10, "Punkte: 0", {font: "25px Arial", fill: "#000000"});
@@ -68,6 +66,7 @@ Phaser first calls the preload function which gives you the opportunity to prelo
   
     this.timedEvent = this.time.delayedCall(3000, this.gameOver, [], this);
 
+    // music
     this.coinMusic = this.sound.add("coinMusic");
     this.bgMusic = this.sound.add("bgMusic");
     this.bgMusic.play();
@@ -102,8 +101,10 @@ Phaser first calls the preload function which gives you the opportunity to prelo
 
   targetHit() {
     this.repositionTarget();
-    this.points++;
-    this.textScore.setText(`Punkte: ${this.points}`);
+    // update global points 
+    this.registry.set('points', this.registry.get('points') + 1);
+
+    this.textScore.setText(`Punkte: ${this.registry.get('points')}`);
     this.coinMusic.play();
   }
 

@@ -7,7 +7,9 @@ export default class GameOver extends Phaser.Scene {
   }
 
   create() {
-    this.add.text(sizes.width / 2, 10, 'Game Over').setOrigin(0.5, 0.5);
+    console.log(this.registry.get('points'));
+    this.add.text(sizes.width / 2, 30, 'Game Over').setOrigin(0.5, 0.5);
+    this.add.text(sizes.width / 2, 50, `Du hast ${this.registry.get('points')} ${this.registry.get('points') === 1 ? 'Punkt' : 'Punkte'} gesammelt `).setOrigin(0.5, 0.5);
 
     const textBtn = this.add.text(sizes.width / 2, sizes.height / 2, "Play again", {
       fontSize: "25px Arial",
