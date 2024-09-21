@@ -1,7 +1,7 @@
 
 export const sizes = {
-  width: 500,
-  height: 500
+  width: 540,
+  height: 540
 }
 
-export const speedDown = 300;
+export const speedDown = 100;

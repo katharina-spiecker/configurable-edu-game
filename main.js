@@ -16,10 +16,11 @@ const config = {
       gravity: {
         y: speedDown
       },
-      debug: true
+      debug: false
     }
   },
-  scene: [GameStart, MainGame, GameOver]
+  scene: [MainGame, GameOver]
+  // scene: [GameStart, MainGame, GameOver]
 }
 
 const game = new Phaser.Game(config);
