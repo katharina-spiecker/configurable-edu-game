@@ -37,6 +37,11 @@ export default class MainGame extends Phaser.Scene {
 
     this.coinMusic = null;
     this.bgMusic = null;
+
+    // get elements for displaying quiz and answers
+    this.quizWrapperElement = document.getElementById("quiz");
+    this.questionElement = document.getElementById("quiz-question");
+    this.answersElement = document.getElementById("quiz-answers");
   }
 
   /*
@@ -66,6 +71,7 @@ Phaser first calls the preload function which gives you the opportunity to prelo
     this.addPlayer();
     this.createTileBackground();
     this.createTileLandscape();
+    this.addQuiz();
 
     // this.cameras.main.startFollow(this.player);
 
@@ -87,7 +93,7 @@ Phaser first calls the preload function which gives you the opportunity to prelo
     this.bgMusic.play();
 
     this.time.addEvent({
-      delay: 500, // Time in milliseconds (1000 ms = 1 second)
+      delay: 300, // Time in milliseconds (1000 ms = 1 second)
       callback: this.moveLandscape, // Function to call
       callbackScope: this, // Scope in which to call the function
       loop: true // Set to true to repeat the event
@@ -205,7 +211,6 @@ Phaser first calls the preload function which gives you the opportunity to prelo
   // update tile layer: if player goes to right side, replace leftmost column with new tiles
     // move all tiles on to the left -> remove first column & add new column
   moveLandscape() {
-    console.log("called")
     this.tilemapArr.forEach((row, index) => {
       // if lowest level
       if (index === this.tilemapArr.length - 1) {
@@ -223,5 +228,50 @@ Phaser first calls the preload function which gives you the opportunity to prelo
     })
 
     this.obstaclesLayer.putTilesAt(this.tilemapArr, 0, 0);
+  }
+
+  addQuiz() {
+    const quiz = this.registry.get("quiz");
+    if (!quiz || quiz.length == 0) {
+      return;
+    }
+
+    let currentQuizIndex = 0;
+    this.quizWrapperElement.style.display = "block";
+
+    this.updateQuiz(currentQuizIndex, quiz);
+
+    // adjust time, currently just short for testing
+    let intervalId = setInterval(() => {
+      currentQuizIndex++;
+      if (currentQuizIndex === quiz.length) {
+        clearInterval(intervalId);
+        return;
+      }
+      
+      this.updateQuiz(currentQuizIndex, quiz);
+    }, 3000)
+    
+  }
+
+  updateQuiz(currentQuizIndex, quiz) {
+    // mapping for max 4 answers to show infront of answer
+    const indexLetterMapping = {
+      0: "a",
+      1: "b",
+      2: "c",
+      3: "d"
+    }
+    
+    const currentQuiz = quiz[currentQuizIndex];
+    this.questionElement.innerText = currentQuiz.question;
+    // clear previous content
+    this.answersElement.innerText = "";
+    // append answers
+    for (let i = 0; i < currentQuiz.answers.length; i++) {
+      const pElement = document.createElement("p");
+      pElement.innerText = `${indexLetterMapping[i]}) ${currentQuiz.answers[i].text}`;
+      this.answersElement.appendChild(pElement);
+    }
   }
 }
