@@ -29,22 +29,13 @@ export default class MainGame extends Phaser.Scene {
     this.answersElement = document.getElementById("quiz-answers");
   }
 
-  /*
-    Phaser first calls the preload function which gives you the opportunity to preload any external asset you need. 
-  */
   preload() {
-    // used to load assets
-    this.load.image("backgroundImage", "/assets/bg.png");
-    this.load.image("basket", "/assets/basket.png");
-    this.load.image("apple", "/assets/apple.png");
     this.load.audio("coinMusic", "/assets/coin.mp3");
     this.load.audio("bgMusic", "/assets/bgMusic.mp3");
 
-    // Load tilemaps
+    // Lade tilemaps: Objekte, Hintergründe, Charaktere
     this.load.image('tiles', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png');
     this.load.image('tilesBg', '../assets/kenney_pixel-platformer/Tilemap/tilemap-backgrounds_packed.png');
-    
-    // Load the sprite sheet that contains all characters
     this.load.spritesheet('spriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap-characters_packed.png', {
       frameWidth: 24,  // Width of each character frame
       frameHeight: 24  // Height of each character frame
@@ -61,7 +52,7 @@ export default class MainGame extends Phaser.Scene {
     this.createTileLandscape();
     this.addQuiz();
     // just for testing
-    // this.addAnswerBoxes()
+    this.addAnswerBoxes()
 
     // add points to global point registry in order to access scene
     this.registry.set("points", 0);
@@ -85,9 +76,6 @@ export default class MainGame extends Phaser.Scene {
     let remainingTime = this.timedEvent.getRemainingSeconds();
     this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
 
-    this.cameras.main.scrollX += 1;
-
-
     // bounce player up if too low
     if (this.player.y >= sizes.height - 90) {
       this.player.setVelocityY(-50);
@@ -98,6 +86,8 @@ export default class MainGame extends Phaser.Scene {
       this.player.setVelocityY(-this.playerSpeed);
     } else if (this.cursor.down.isDown) {
       this.player.setVelocityY(this.playerSpeed)
+    } else if (this.cursor.right.isDown) {
+      this.player.setVelocityX(80);
     }
   }
 
@@ -131,15 +121,25 @@ export default class MainGame extends Phaser.Scene {
     // making the outer bound smaller than the actual size
     this.player.setSize(20, 20);
 
-    this.player.setVelocityX(100);
+    // Geschwindigkeit mit der sich Player nach rechts bewegt
+    this.player.setVelocityX(80);
+    // Kamera folgt dem Spieler auf der x Achse. Verikale Position bleibt konstant
+    this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
+    // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
+    this.cameras.main.setScroll(0, 0); 
   }
 
   createTileBackground() {
-    const tilemapArr = [
-      [6, 7, 6],
-      [14, 15, 14],
-      [23, 23, 23]
-    ]
+    // green background
+    // const tilemapArr = [
+    //   [6, 7, 6],
+    //   [14, 15, 14],
+    //   [23, 23, 23]
+    // ]
+
+    const tilemapArr = [[],[],[]];
+
+    const middleLayerSelection = [8, 9, 10];
 
     const tileSize = 24;
     // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
@@ -149,12 +149,17 @@ export default class MainGame extends Phaser.Scene {
 
     for (let i = 0; i < columnsNeeded; i++) {
       tilemapArr.forEach((row, index) => {
-        if (index === 0) {
-          row.push(6);
-        } else if (index === 1) {
-          row.push(14);
+        // zweite Zeile kriegt ein zufälliges Bild
+        if (index === 1) {
+          // generiert 0, 1 oder 2
+          let randomIndex = Math.floor(Math.random() * 3)
+          row.push(middleLayerSelection[randomIndex]);
+          // letzte Zeile
+        } else if (index === 2) {
+          row.push(16);
+          // erste Zeile
         } else {
-          row.push(23);
+          row.push(0);
         }
       })
     }
@@ -216,6 +221,7 @@ export default class MainGame extends Phaser.Scene {
         const randIndex = Math.floor(Math.random() * this.surpriseObstacles.length);
         row.push(this.surpriseObstacles[randIndex]);
       } else {
+        // TODO: you could add clouds
         // TODO randomly add platforms or empty tiles
         row.push(-1);
       }
@@ -271,6 +277,20 @@ export default class MainGame extends Phaser.Scene {
   }
 
   addAnswerBoxes() {
+    // Get the camera's current scroll position
+    const camScrollX = this.cameras.main.scrollX;
+    const camWidth = this.cameras.main.width;
+    const camHeight = this.cameras.main.height;
+
+    // Define the position within the visible screen
+    const obstacleX = camScrollX + camWidth * 0.8; // 80% of the way across the visible area
+    const obstacleY = camHeight - 100; // Fixed vertical position near the bottom
+
+    // Add an image (obstacle) at the calculated position
+    const obstacle = this.add.image(obstacleX, obstacleY, 'spriteSheet', 17);
+    obstacle.setOrigin(0.5, 0.5); // Set the origin point if needed (center-bottom)
+
+
     // let target1 = this.physics.add.sprite(400, 300, 'spriteSheet', 17).setOrigin(0, 0);
     // target1.body.setGravityY(0); 
     // target1.setVelocityX(-10);
@@ -280,7 +300,9 @@ export default class MainGame extends Phaser.Scene {
     // this.physics.add.overlap(target1, this.player, this.targetHit, null, this);
     // TODO: dont use image use tiles in tilemap otherwise does not move towards left?
     // TODO: test
-    this.obstaclesLayer.putTileAt(9, 7, 1);
+    // this.obstaclesLayer.putTileAt(9, 7, 1);
  
   }
+
+
 }
