@@ -21,8 +21,6 @@ export default class GameStart extends Phaser.Scene {
     })
     .catch(err => console.error(err))
 
-
-
     const textBtn = this.add.text(sizes.width / 2, sizes.height / 2, "Game start", {
       fontSize: "25px Arial",
       color: "#fff",
@@ -37,12 +35,4 @@ export default class GameStart extends Phaser.Scene {
       this.scene.start("MainGame")
     })
   }
-
-  
-
-/* <h1>Apple Catcher</h1>
-            <p>You have 30 seconds to catch apples!</p>
-            <p>If you catch more than 10 apples you win.</p>
-            <p>Click the start button to begin</p>
-            <button id="game-start-btn">Start</button> */
 }

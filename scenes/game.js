@@ -15,22 +15,7 @@ export default class MainGame extends Phaser.Scene {
     this.textScore = null;
     this.textTime = null; // display remaining time here
 
-    this.playerTileX = 0;
-    this.obstaclesMap = null;
     this.obstaclesLayer = null;
-
-    this.tilemapArr = [
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, 146, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1,  -1],
-      [ -1, -1, -1, -1, -1, -1, -1, 146, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, 146],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, 88, -1, 107, 126, -1, -1, -1, 108, -1],
-      [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-    ]
 
     // 107: mushroom, 108: big mushroom, 128: tiny mushroom
     this.surpriseObstacles = [-1, -1, -1, 107, 108, 128, 127];
@@ -45,8 +30,7 @@ export default class MainGame extends Phaser.Scene {
   }
 
   /*
-
-Phaser first calls the preload function which gives you the opportunity to preload any external asset you need. 
+    Phaser first calls the preload function which gives you the opportunity to preload any external asset you need. 
   */
   preload() {
     // used to load assets
@@ -68,17 +52,19 @@ Phaser first calls the preload function which gives you the opportunity to prelo
   }
 
   create() {
+    // TODO make this dependent on amount of questions
+    // how long the game should stretch in unit of screens (one game screen is sizes.with wide)
+    this.gameFramesAmount = 10;
+
     this.addPlayer();
     this.createTileBackground();
     this.createTileLandscape();
     this.addQuiz();
-
-    // this.cameras.main.startFollow(this.player);
+    // just for testing
+    // this.addAnswerBoxes()
 
     // add points to global point registry in order to access scene
-    this.registry.set("points", 0)
-
-    // TODO: react if answer clicked this.physics.add.overlap(this.target, this.player, this.targetHit, null, this);
+    this.registry.set("points", 0);
 
     // for listening to moving left and right in update method
     this.cursor = this.input.keyboard.createCursorKeys();
@@ -88,24 +74,19 @@ Phaser first calls the preload function which gives you the opportunity to prelo
     this.textTime = this.add.text(sizes.width - 300, 10, "Remaining Time", {font: "16px Arial", fill: "#000000"});
 
     // music
-    // this.coinMusic = this.sound.add("coinMusic");
+    this.coinMusic = this.sound.add("coinMusic");
     this.bgMusic = this.sound.add("bgMusic");
     this.bgMusic.play();
 
-    this.time.addEvent({
-      delay: 300, // Time in milliseconds (1000 ms = 1 second)
-      callback: this.moveLandscape, // Function to call
-      callbackScope: this, // Scope in which to call the function
-      loop: true // Set to true to repeat the event
-    });
-
     this.timedEvent = this.time.delayedCall(30000, this.gameOver, [], this);
-  
   }
 
   update() {
     let remainingTime = this.timedEvent.getRemainingSeconds();
     this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
+
+    this.cameras.main.scrollX += 1;
+
 
     // bounce player up if too low
     if (this.player.y >= sizes.height - 90) {
@@ -117,29 +98,8 @@ Phaser first calls the preload function which gives you the opportunity to prelo
       this.player.setVelocityY(-this.playerSpeed);
     } else if (this.cursor.down.isDown) {
       this.player.setVelocityY(this.playerSpeed)
-    } else {
-      this.player.setVelocityX(0);
-      // this.player.setVelocityY(0);
     }
   }
-
-  getRandomX() {
-    return Math.floor(Math.random() * (sizes.width - 20));
-  }
-
-  targetHit() {
-    this.repositionTarget();
-    // update global points 
-    this.registry.set('points', this.registry.get('points') + 1);
-
-    this.textScore.setText(`Punkte: ${this.registry.get('points')}`);
-    this.coinMusic.play();
-  }
-
-  // repositionTarget() {
-  //   this.target.setY(0);
-  //   this.target.setX(this.getRandomX());
-  // }
 
   gameOver() {
     this.sound.stopAll();
@@ -160,8 +120,6 @@ Phaser first calls the preload function which gives you the opportunity to prelo
     // Play the animation for a specific character
     this.player.play('character1_walk');
 
-    // Ensures the sprite will not move outside the game world's boundaries
-    this.player.setCollideWorldBounds(true);
     // Set a bounce factor so the sprite bounces off the ground
     this.player.setBounce(0.3);
 
@@ -172,62 +130,96 @@ Phaser first calls the preload function which gives you the opportunity to prelo
 
     // making the outer bound smaller than the actual size
     this.player.setSize(20, 20);
+
+    this.player.setVelocityX(100);
   }
 
   createTileBackground() {
-    const bgTilesArr = [
+    const tilemapArr = [
       [6, 7, 6],
       [14, 15, 14],
       [23, 23, 23]
     ]
 
+    const tileSize = 24;
+    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
+    const tileScale = sizes.height / (tileSize * tilemapArr.length);
+    const totalSize = this.gameFramesAmount * sizes.width;
+    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
+
+    for (let i = 0; i < columnsNeeded; i++) {
+      tilemapArr.forEach((row, index) => {
+        if (index === 0) {
+          row.push(6);
+        } else if (index === 1) {
+          row.push(14);
+        } else {
+          row.push(23);
+        }
+      })
+    }
+
     // create tilemap for background
-    const bgMap = this.make.tilemap({data: bgTilesArr, tileWidth: 24, tileHeight: 24})
+    const bgMap = this.make.tilemap({data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize})
 
     const bgTileset = bgMap.addTilesetImage('tilesBg');
     const bgLayer = bgMap.createLayer(0, bgTileset, 0, 0);
-    const bgScale = sizes.width / (24 * bgTilesArr.length)
-    bgLayer.setScale(bgScale);
+   
+    bgLayer.setScale(tileScale);
   }
 
   createTileLandscape() {
-    
+    let tilemapArr = [
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      [ -1, -1, -1, -1, 146, -1, -1, -1, -1, -1],
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1,  -1],
+      [ -1, -1, -1, -1, -1, -1, -1, 146, -1, -1],
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, 146],
+      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+      [ -1, 88, -1, 107, 126, -1, -1, -1, 108, -1],
+      [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    ]
+
+    const tileSize = 18;
+    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
+    const tileScale = sizes.height / (tileSize * tilemapArr.length);
+    const totalSize = this.gameFramesAmount * sizes.width;
+    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
+
+    for (let i = 0; i < columnsNeeded; i++) {
+      this.addLandscapeTileColumn(tilemapArr);
+    }
+
     // Create the tilemap from the 2D array
-    this.obstaclesMap = this.make.tilemap({ data: this.tilemapArr, tileWidth: 18, tileHeight: 18 });
+    let obstaclesMap = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
     // Add the tileset image to the map
-    const tileset = this.obstaclesMap.addTilesetImage('tiles');
+    const tileset = obstaclesMap.addTilesetImage('tiles');
     // Create a layer for the map, passing in the name of the tileset
-    this.obstaclesLayer = this.obstaclesMap.createLayer(0, tileset, 0, 0);
-    // Scale the layer to increas the size
-    const layer2Scale = sizes.width / (18 * this.tilemapArr.length);
-    this.obstaclesLayer.setScale(layer2Scale);
+    this.obstaclesLayer = obstaclesMap.createLayer(0, tileset, 0, 0);
+    
+    this.obstaclesLayer.setScale(tileScale);
     // Enable collisions on the ground and obstacle layers, -1 is for excluding empty tiles
     this.obstaclesLayer.setCollisionByExclusion([-1]);
     // Enable collision between player and tilemap layers
     this.physics.add.collider(this.player, this.obstaclesLayer);
-
   }
 
-  // update tile layer: if player goes to right side, replace leftmost column with new tiles
-    // move all tiles on to the left -> remove first column & add new column
-  moveLandscape() {
-    this.tilemapArr.forEach((row, index) => {
+  addLandscapeTileColumn(tilemapArr) {
+    tilemapArr.forEach((row, index) => {
       // if lowest level
-      if (index === this.tilemapArr.length - 1) {
+      if (index === tilemapArr.length - 1) {
         row.push(2);
         // if second lowest level
-      } else if (index === this.tilemapArr.length - 2) {
+      } else if (index === tilemapArr.length - 2) {
         const randIndex = Math.floor(Math.random() * this.surpriseObstacles.length);
         row.push(this.surpriseObstacles[randIndex]);
       } else {
         // TODO randomly add platforms or empty tiles
         row.push(-1);
       }
-      
-      row.shift();
     })
-
-    this.obstaclesLayer.putTilesAt(this.tilemapArr, 0, 0);
   }
 
   addQuiz() {
@@ -273,5 +265,22 @@ Phaser first calls the preload function which gives you the opportunity to prelo
       pElement.innerText = `${indexLetterMapping[i]}) ${currentQuiz.answers[i].text}`;
       this.answersElement.appendChild(pElement);
     }
+
+    this.addAnswerBoxes();
+
+  }
+
+  addAnswerBoxes() {
+    // let target1 = this.physics.add.sprite(400, 300, 'spriteSheet', 17).setOrigin(0, 0);
+    // target1.body.setGravityY(0); 
+    // target1.setVelocityX(-10);
+    // let answer2 = this.physics.add.image(400, 300, 'spriteSheet', 20);
+    // let answer3 = this.physics.add.image(400, 300, 'spriteSheet', 27);
+
+    // this.physics.add.overlap(target1, this.player, this.targetHit, null, this);
+    // TODO: dont use image use tiles in tilemap otherwise does not move towards left?
+    // TODO: test
+    this.obstaclesLayer.putTileAt(9, 7, 1);
+ 
   }
 }
