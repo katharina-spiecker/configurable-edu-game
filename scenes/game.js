@@ -6,19 +6,14 @@ export default class MainGame extends Phaser.Scene {
     super("MainGame");
     this.player = null;
     this.cursor = null;
-    // player should move a little faster than the apples falling down otherwise too hard to catch
-    this.playerSpeed = 300;
+    this.playerSpeedY = 300;
+    this.playerSpeedX = 80;
     this.target = null;
 
     this.timedEvent = null;
     // where info is displayed
     this.textScore = null;
     this.textTime = null; // display remaining time here
-
-    this.obstaclesLayer = null;
-
-    // 107: mushroom, 108: big mushroom, 128: tiny mushroom
-    this.surpriseObstacles = [-1, -1, -1, 107, 108, 128, 127];
 
     this.coinMusic = null;
     this.bgMusic = null;
@@ -49,6 +44,7 @@ export default class MainGame extends Phaser.Scene {
 
     this.addPlayer();
     this.createTileBackground();
+    this.createTileClouds();
     this.createTileLandscape();
     this.addQuiz();
     // just for testing
@@ -80,14 +76,15 @@ export default class MainGame extends Phaser.Scene {
     if (this.player.y >= sizes.height - 90) {
       this.player.setVelocityY(-50);
     }
-
     
     if (this.cursor.up.isDown) {
-      this.player.setVelocityY(-this.playerSpeed);
+      this.player.setVelocityY(-this.playerSpeedY);
     } else if (this.cursor.down.isDown) {
-      this.player.setVelocityY(this.playerSpeed)
+      this.player.setVelocityY(this.playerSpeedY)
     } else if (this.cursor.right.isDown) {
-      this.player.setVelocityX(80);
+      this.player.setVelocityX(this.playerSpeedX * 3);
+    } else {
+      this.player.setVelocityX(this.playerSpeedX);
     }
   }
 
@@ -99,6 +96,7 @@ export default class MainGame extends Phaser.Scene {
   addPlayer() {
     this.player = this.physics.add.sprite(sizes.width / 3, 0, 'spriteSheet', 4); // Extract character at frame 1
     this.player.setOrigin(0.5, 0.5).setScale(3);
+    // this.player.body.setAllowGravity(false);
 
     this.anims.create({
       key: 'character1_walk',
@@ -110,8 +108,8 @@ export default class MainGame extends Phaser.Scene {
     // Play the animation for a specific character
     this.player.play('character1_walk');
 
-    // Set a bounce factor so the sprite bounces off the ground
-    this.player.setBounce(0.3);
+    // wie stark Player zurückprallen soll bei Zusammenstoß mit anderem Objekt
+    this.player.setBounce(0.5);
 
     // should not move when collided with by other objects
     this.player.setImmovable(true);
@@ -122,7 +120,7 @@ export default class MainGame extends Phaser.Scene {
     this.player.setSize(20, 20);
 
     // Geschwindigkeit mit der sich Player nach rechts bewegt
-    this.player.setVelocityX(80);
+    this.player.setVelocityX(this.playerSpeedX);
     // Kamera folgt dem Spieler auf der x Achse. Verikale Position bleibt konstant
     this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
@@ -130,13 +128,8 @@ export default class MainGame extends Phaser.Scene {
   }
 
   createTileBackground() {
-    // green background
-    // const tilemapArr = [
-    //   [6, 7, 6],
-    //   [14, 15, 14],
-    //   [23, 23, 23]
-    // ]
-
+    // Hintergrund bewegt sich langsamer
+    const scrollFactor = 0.3;
     const tilemapArr = [[],[],[]];
 
     const middleLayerSelection = [8, 9, 10];
@@ -144,7 +137,8 @@ export default class MainGame extends Phaser.Scene {
     const tileSize = 24;
     // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
     const tileScale = sizes.height / (tileSize * tilemapArr.length);
-    const totalSize = this.gameFramesAmount * sizes.width;
+    // multipliziere mit scroll factor, da wenn weniger schnell, muss weniger generiert werden
+    const totalSize = this.gameFramesAmount * sizes.width * scrollFactor;
     const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
 
     for (let i = 0; i < columnsNeeded; i++) {
@@ -169,8 +163,57 @@ export default class MainGame extends Phaser.Scene {
 
     const bgTileset = bgMap.addTilesetImage('tilesBg');
     const bgLayer = bgMap.createLayer(0, bgTileset, 0, 0);
-   
     bgLayer.setScale(tileScale);
+    bgLayer.setScrollFactor(0.5);
+  }
+
+  createTileClouds() {
+    // Wolken sollen Mittel Layer sein und daher schneller als Hintergrund, aber langsamer als Vordergrund
+    const scrollFactor = 0.6;
+
+    const tileSize = 18;
+    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
+    const tileScale = 5;
+    // multipliziere mit scroll factor, da wenn weniger schnell, muss weniger generiert werden
+    const totalSize = this.gameFramesAmount * sizes.width * scrollFactor;
+    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
+
+    // muss 2D Array sein für tilemap, allerdings brauchen wir nur eine Zeile
+    const tilemapArr = [[]];
+    let isGeneratingCloud = false;
+    const cloudTiles = [153, 154, 155];
+    let cloudIndex = 0;
+
+    for (let i = 0; i < columnsNeeded; i++) {
+      if (isGeneratingCloud) {
+        // komplette Wolke wurde generiert
+        if (cloudIndex == cloudTiles.length) {
+          // setze Werte zurück
+          cloudIndex = 0;
+          isGeneratingCloud = false;
+        } else {
+          tilemapArr[0].push(cloudTiles[cloudIndex]);
+          cloudIndex++;
+        }
+        //
+      } else {
+        // leere Tile hinzufügen
+        tilemapArr[0].push(-1);
+        if (Math.random() > 0.8) {
+          isGeneratingCloud = true;
+        }
+      }
+    }
+
+    // Create the tilemap from the 2D array
+    let map = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
+    // Add the tileset image to the map
+    const tileset = map.addTilesetImage('tiles');
+    // Create a layer for the map, passing in the name of the tileset
+    const layer = map.createLayer(0, tileset, 0, 0);
+    
+    layer.setScale(tileScale);
+    layer.setScrollFactor(0.5);
   }
 
   createTileLandscape() {
@@ -202,27 +245,34 @@ export default class MainGame extends Phaser.Scene {
     // Add the tileset image to the map
     const tileset = obstaclesMap.addTilesetImage('tiles');
     // Create a layer for the map, passing in the name of the tileset
-    this.obstaclesLayer = obstaclesMap.createLayer(0, tileset, 0, 0);
+    const obstaclesLayer = obstaclesMap.createLayer(0, tileset, 0, 0);
     
-    this.obstaclesLayer.setScale(tileScale);
+    obstaclesLayer.setScale(tileScale);
     // Enable collisions on the ground and obstacle layers, -1 is for excluding empty tiles
-    this.obstaclesLayer.setCollisionByExclusion([-1]);
+    obstaclesLayer.setCollisionByExclusion([-1]);
     // Enable collision between player and tilemap layers
-    this.physics.add.collider(this.player, this.obstaclesLayer);
+    this.physics.add.collider(this.player, obstaclesLayer);
   }
 
   addLandscapeTileColumn(tilemapArr) {
+    // 107: mushroom, 108: big mushroom, 128: tiny mushroom
+    const surpriseObstacles = [107, 108, 128];
+
     tilemapArr.forEach((row, index) => {
       // if lowest level
       if (index === tilemapArr.length - 1) {
         row.push(2);
         // if second lowest level
       } else if (index === tilemapArr.length - 2) {
-        const randIndex = Math.floor(Math.random() * this.surpriseObstacles.length);
-        row.push(this.surpriseObstacles[randIndex]);
+        // nur ein kleiner Teil des Bodens soll befüllt werden
+        if (Math.random() > 0.8) {
+          // wähle zufällig aus
+          const randIndex = Math.floor(Math.random() * surpriseObstacles.length);
+          row.push(surpriseObstacles[randIndex]);
+        } else {
+          row.push(-1);
+        }
       } else {
-        // TODO: you could add clouds
-        // TODO randomly add platforms or empty tiles
         row.push(-1);
       }
     })
@@ -253,14 +303,6 @@ export default class MainGame extends Phaser.Scene {
   }
 
   updateQuiz(currentQuizIndex, quiz) {
-    // mapping for max 4 answers to show infront of answer
-    const indexLetterMapping = {
-      0: "a",
-      1: "b",
-      2: "c",
-      3: "d"
-    }
-    
     const currentQuiz = quiz[currentQuizIndex];
     this.questionElement.innerText = currentQuiz.question;
     // clear previous content
@@ -268,12 +310,11 @@ export default class MainGame extends Phaser.Scene {
     // append answers
     for (let i = 0; i < currentQuiz.answers.length; i++) {
       const pElement = document.createElement("p");
-      pElement.innerText = `${indexLetterMapping[i]}) ${currentQuiz.answers[i].text}`;
+      pElement.innerText = `${i + 1}) ${currentQuiz.answers[i].text}`;
       this.answersElement.appendChild(pElement);
     }
 
     this.addAnswerBoxes();
-
   }
 
   addAnswerBoxes() {
@@ -300,7 +341,6 @@ export default class MainGame extends Phaser.Scene {
     // this.physics.add.overlap(target1, this.player, this.targetHit, null, this);
     // TODO: dont use image use tiles in tilemap otherwise does not move towards left?
     // TODO: test
-    // this.obstaclesLayer.putTileAt(9, 7, 1);
  
   }
 
