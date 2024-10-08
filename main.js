@@ -7,9 +7,15 @@ import { sizes } from './gameConfig';
 
 const config = {
   type: Phaser.WEBGL, // we could also choose Phaser.AUTO
-  width: sizes.width,
-  height: sizes.height,
   canvas: gameCanvas,
+  scale: {
+    width: sizes.width,
+    height: sizes.height,
+    // mode: Phaser.Scale.FIT
+  },
+  render: {
+    pixelArt: true
+  },
   physics: {
     default: "arcade",
     arcade: {
@@ -22,4 +28,4 @@ const config = {
   scene: [GameStart, MainGame, GameOver]
 }
 
-const game = new Phaser.Game(config);
+new Phaser.Game(config);

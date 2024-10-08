@@ -22,17 +22,17 @@ export default class GameStart extends Phaser.Scene {
     this.anims.create({
       key: 'loading_animation',
       frames: this.anims.generateFrameNumbers('spriteSheet', { start: 4, end: 5 }),
-      frameRate: 3,
+      frameRate: 3, // frames per second
       repeat: -1
     });
-    const loadingImage = this.add.sprite(sizes.width / 2, sizes.height / 2, 'spriteSheet', 4);
-    loadingImage.setScale(5);
-    loadingImage.play('loading_animation');
+    const loadingAnim = this.add.sprite(sizes.width / 2, sizes.height / 2, 'spriteSheet', 4);
+    loadingAnim.setScale(5);
+    loadingAnim.play('loading_animation');
 
 
     // load game data
     // f43760a3-55c3-4d6c-a40e-98e606136ac7 cf3ab749-789f-405d-9741-bf6770ac8bed
-    const testQuizId = "cf3ab749-789f-405d-9741-bf6770ac8bed"
+    const testQuizId = "670114ec9f2becc8986974e6";
     fetch(`http://localhost:3000/api/topics/${testQuizId}`)
     .then(res => {
       if (!res.ok) {
@@ -41,7 +41,8 @@ export default class GameStart extends Phaser.Scene {
       return res.json();
     })
     .then(data => {
-      loadingImage.destroy();
+      // TODO: make sure it is visible for at least 3 seconds
+      loadingAnim.destroy();
       loadingText.destroy();
       // speichere Quizdaten, damit verfügbar in anderen Szenen
       this.registry.set("topicName", data.topicName)

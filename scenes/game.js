@@ -38,17 +38,20 @@ export default class MainGame extends Phaser.Scene {
   }
 
   create() {
-    // TODO make this dependent on amount of questions
     // how long the game should stretch in unit of screens (one game screen is sizes.with wide)
-    this.gameFramesAmount = 10;
+    // a question should last for 4 frames -> total frames = amount of questions times 4
+    const quiz = this.registry.get("quiz");
+    if (quiz && quiz.length > 0) {
+      this.gameFramesAmount = quiz.length * 4;
+    } else {
+      this.gameFramesAmount = 10;
+    }
 
     this.addPlayer();
     this.createTileBackground();
     this.createTileClouds();
     this.createTileLandscape();
     this.addQuiz();
-    // just for testing
-    this.addAnswerBoxes()
 
     // add points to global point registry in order to access scene
     this.registry.set("points", 0);
@@ -64,13 +67,11 @@ export default class MainGame extends Phaser.Scene {
     this.coinMusic = this.sound.add("coinMusic");
     this.bgMusic = this.sound.add("bgMusic");
     this.bgMusic.play();
-
-    this.timedEvent = this.time.delayedCall(30000, this.gameOver, [], this);
   }
 
   update() {
-    let remainingTime = this.timedEvent.getRemainingSeconds();
-    this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
+    // let remainingTime = this.timedEvent.getRemainingSeconds();
+    // this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
 
     // bounce player up if too low
     if (this.player.y >= sizes.height - 90) {
@@ -90,6 +91,9 @@ export default class MainGame extends Phaser.Scene {
 
   gameOver() {
     this.sound.stopAll();
+    this.questionElement.innerText = "";
+    this.answersElement.innerText = "";
+    this.quizWrapperElement.style.display = "none";
     this.scene.start('GameOver');
   }
 
@@ -116,7 +120,7 @@ export default class MainGame extends Phaser.Scene {
 
     this.player.setDepth(1);
 
-    // making the outer bound smaller than the actual size
+    // macht collision box kleiner als player
     this.player.setSize(20, 20);
 
     // Geschwindigkeit mit der sich Player nach rechts bewegt
@@ -280,13 +284,13 @@ export default class MainGame extends Phaser.Scene {
 
   addQuiz() {
     const quiz = this.registry.get("quiz");
-    if (!quiz || quiz.length == 0) {
+    if (!quiz || quiz.length === 0) {
       return;
     }
 
     let currentQuizIndex = 0;
     this.quizWrapperElement.style.display = "block";
-
+    // setzte Anfangsquiz
     this.updateQuiz(currentQuizIndex, quiz);
 
     // adjust time, currently just short for testing
@@ -294,11 +298,12 @@ export default class MainGame extends Phaser.Scene {
       currentQuizIndex++;
       if (currentQuizIndex === quiz.length) {
         clearInterval(intervalId);
-        return;
+        this.gameOver();
+      } else {
+        this.updateQuiz(currentQuizIndex, quiz);
       }
       
-      this.updateQuiz(currentQuizIndex, quiz);
-    }, 3000)
+    }, 5000)
     
   }
 
@@ -313,11 +318,10 @@ export default class MainGame extends Phaser.Scene {
       pElement.innerText = `${i + 1}) ${currentQuiz.answers[i].text}`;
       this.answersElement.appendChild(pElement);
     }
-
-    this.addAnswerBoxes();
+    this.addAnswerBoxes(currentQuiz);
   }
 
-  addAnswerBoxes() {
+  addAnswerBoxes(currentQuiz) {
     // Get the camera's current scroll position
     const camScrollX = this.cameras.main.scrollX;
     const camWidth = this.cameras.main.width;
@@ -325,11 +329,20 @@ export default class MainGame extends Phaser.Scene {
 
     // Define the position within the visible screen
     const obstacleX = camScrollX + camWidth * 0.8; // 80% of the way across the visible area
-    const obstacleY = camHeight - 100; // Fixed vertical position near the bottom
-
-    // Add an image (obstacle) at the calculated position
-    const obstacle = this.add.image(obstacleX, obstacleY, 'spriteSheet', 17);
-    obstacle.setOrigin(0.5, 0.5); // Set the origin point if needed (center-bottom)
+    
+    const usedPositions = [];
+    for (let i = 0; i < currentQuiz.answers.length; i++) {
+      let obstacleY = Math.floor(Math.random() * camHeight); // zufällige random position
+      // todo to also take height of box into account - answers should not overlap
+      while(usedPositions.includes(obstacleY)) {
+        obstacleY = Math.floor(Math.random() * camHeight);
+      }
+      usedPositions.push(obstacleY);
+      // Add an image (obstacle) at the calculated position
+      const obstacle = this.add.image(obstacleX, obstacleY, 'spriteSheet', 12);
+      obstacle.setScale(2);
+      obstacle.setOrigin(0.5, 0.5); // Set the origin point if needed (center-bottom)
+    }
 
 
     // let target1 = this.physics.add.sprite(400, 300, 'spriteSheet', 17).setOrigin(0, 0);
