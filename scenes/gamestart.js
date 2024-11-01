@@ -14,7 +14,6 @@ export default class GameStart extends Phaser.Scene {
   }
 
   create() {
-
     // Füge Text Loading
     const loadingText = this.add.text(sizes.width / 2, sizes.height / 2 + 100, "Loading...", {font: "30px Arial", fill: "#ffffff"}).setOrigin(0.5, 0.5)
 
@@ -28,7 +27,6 @@ export default class GameStart extends Phaser.Scene {
     const loadingAnim = this.add.sprite(sizes.width / 2, sizes.height / 2, 'spriteSheet', 4);
     loadingAnim.setScale(5);
     loadingAnim.play('loading_animation');
-
 
     // load game data
     // f43760a3-55c3-4d6c-a40e-98e606136ac7 cf3ab749-789f-405d-9741-bf6770ac8bed

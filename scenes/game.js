@@ -10,23 +10,27 @@ export default class MainGame extends Phaser.Scene {
     this.playerSpeedX = 80;
     this.target = null;
 
-    this.timedEvent = null;
     // where info is displayed
     this.textScore = null;
-    this.textTime = null; // display remaining time here
-
-    this.coinMusic = null;
-    this.bgMusic = null;
+    // this.textTime = null; // display remaining time here
 
     // get elements for displaying quiz and answers
     this.quizWrapperElement = document.getElementById("quiz");
     this.questionElement = document.getElementById("quiz-question");
     this.answersElement = document.getElementById("quiz-answers");
+
+    this.currentQuizIndex = 0;
+    this.quiz = [];
+
+    // tilemaps
+    this.obstaclesMap = null;
   }
 
   preload() {
-    this.load.audio("coinMusic", "/assets/coin.mp3");
-    this.load.audio("bgMusic", "/assets/bgMusic.mp3");
+    this.load.audio("coinSound", "../assets/audio/coin.mp3");
+    this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
+    // this.load.audio("wrongAnswerSound", "../assets/audio/kenney_impact-sounds/Audio/impactPunch_heavy_004.ogg");
+    // this.load.audio("bgMusic", "/assets/bgMusic.mp3");
 
     // Lade tilemaps: Objekte, Hintergründe, Charaktere
     this.load.image('tiles', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png');
@@ -34,6 +38,11 @@ export default class MainGame extends Phaser.Scene {
     this.load.spritesheet('spriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap-characters_packed.png', {
       frameWidth: 24,  // Width of each character frame
       frameHeight: 24  // Height of each character frame
+    });
+
+    this.load.spritesheet('itemsSpriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png', {
+      frameWidth: 18,  // Width of each character frame
+      frameHeight: 18  // Height of each character frame
     });
   }
 
@@ -44,13 +53,20 @@ export default class MainGame extends Phaser.Scene {
     if (quiz && quiz.length > 0) {
       this.gameFramesAmount = quiz.length * 4;
     } else {
-      this.gameFramesAmount = 10;
+      this.gameFramesAmount = 3;
     }
 
-    this.addPlayer();
     this.createTileBackground();
     this.createTileClouds();
     this.createTileLandscape();
+
+    this.addPlayer();
+    this.answerObjects = this.physics.add.group();
+
+    // Enable collision between player and tilemap layers
+    // TODO this.physics.add.collider(this.player, obstaclesLayer);
+
+
     this.addQuiz();
 
     // add points to global point registry in order to access scene
@@ -61,22 +77,39 @@ export default class MainGame extends Phaser.Scene {
 
     this.textScore = this.add.text(10, 10, "Punkte: 0", {font: "16px Arial", fill: "#000000"});
 
-    this.textTime = this.add.text(sizes.width - 300, 10, "Remaining Time", {font: "16px Arial", fill: "#000000"});
+    // this.textTime = this.add.text(sizes.width - 300, 10, "Remaining Time", {font: "16px Arial", fill: "#000000"});
 
     // music
-    this.coinMusic = this.sound.add("coinMusic");
-    this.bgMusic = this.sound.add("bgMusic");
-    this.bgMusic.play();
+    this.coinSound = this.sound.add("coinSound");
+    this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
+    // this.bgMusic = this.sound.add("bgMusic");
+    // this.bgMusic.play();
+
+    this.anims.create({
+      key: 'lose_points',
+      frames: this.anims.generateFrameNumbers('itemsSpriteSheet', { start: 44, end: 46 }),
+      frameRate: 3
+    });
+
+    this.pointsLoseAnim = this.add.sprite(sizes.width - 30, 30, 'itemsSpriteSheet', 44);
+    this.pointsLoseAnim.setVisible(false);
+    this.pointsLoseAnim.setScale(2);
+
+    this.coinParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
+      frame: 151,
+      speed: 100,
+      gravity: 50,
+      scale: 2,
+      duration: 100,
+      emitting: false
+    });
+
+    this.coinParticles.startFollow(this.player, 10, 10, true);
   }
 
   update() {
     // let remainingTime = this.timedEvent.getRemainingSeconds();
     // this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
-
-    // bounce player up if too low
-    if (this.player.y >= sizes.height - 90) {
-      this.player.setVelocityY(-50);
-    }
     
     if (this.cursor.up.isDown) {
       this.player.setVelocityY(-this.playerSpeedY);
@@ -84,8 +117,11 @@ export default class MainGame extends Phaser.Scene {
       this.player.setVelocityY(this.playerSpeedY)
     } else if (this.cursor.right.isDown) {
       this.player.setVelocityX(this.playerSpeedX * 3);
+    } else if (this.cursor.left.isDown) {
+      this.player.setVelocityX(-this.playerSpeedX * 3);
     } else {
-      this.player.setVelocityX(this.playerSpeedX);
+      // mache Player 10% langsamer, wenn keine Taste gedrückt damit langsam anhaltend
+      this.player.setVelocityX(this.player.body.velocity.x * 0.9);
     }
   }
 
@@ -118,17 +154,22 @@ export default class MainGame extends Phaser.Scene {
     // should not move when collided with by other objects
     this.player.setImmovable(true);
 
-    this.player.setDepth(1);
+    // this.player.setDepth(1); wie z-index
 
     // macht collision box kleiner als player
     this.player.setSize(20, 20);
 
     // Geschwindigkeit mit der sich Player nach rechts bewegt
-    this.player.setVelocityX(this.playerSpeedX);
+    // this.player.setVelocityX(this.playerSpeedX);
     // Kamera folgt dem Spieler auf der x Achse. Verikale Position bleibt konstant
-    this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
+    // this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
     this.cameras.main.setScroll(0, 0); 
+    this.cameras.main.setBounds(0, 0, this.obstaclesMap.widthInPixels, sizes.height); // Kamera kann nicht über den Bereich hinausgehen
+    // damit player nicht über diesen Bereich hinausgehen kann
+    this.physics.world.setBounds(0, 0, sizes.width, sizes.height - 54); // Höhe minus 54 px damit nicht tiefer als "Erde" möglich
+    this.physics.world.setBoundsCollision(true, true, false, true);
+    this.player.setCollideWorldBounds(true);
   }
 
   createTileBackground() {
@@ -214,10 +255,7 @@ export default class MainGame extends Phaser.Scene {
     // Add the tileset image to the map
     const tileset = map.addTilesetImage('tiles');
     // Create a layer for the map, passing in the name of the tileset
-    const layer = map.createLayer(0, tileset, 0, 0);
-    
-    layer.setScale(tileScale);
-    layer.setScrollFactor(0.5);
+    map.createLayer(0, tileset, 0, 0).setScale(tileScale).setScrollFactor(0.5);
   }
 
   createTileLandscape() {
@@ -237,6 +275,7 @@ export default class MainGame extends Phaser.Scene {
     const tileSize = 18;
     // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
     const tileScale = sizes.height / (tileSize * tilemapArr.length);
+    console.log(tileScale * 18)
     const totalSize = this.gameFramesAmount * sizes.width;
     const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
 
@@ -245,17 +284,15 @@ export default class MainGame extends Phaser.Scene {
     }
 
     // Create the tilemap from the 2D array
-    let obstaclesMap = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
+    this.obstaclesMap = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
     // Add the tileset image to the map
-    const tileset = obstaclesMap.addTilesetImage('tiles');
+    const tileset = this.obstaclesMap.addTilesetImage('tiles');
     // Create a layer for the map, passing in the name of the tileset
-    const obstaclesLayer = obstaclesMap.createLayer(0, tileset, 0, 0);
+    const obstaclesLayer = this.obstaclesMap.createLayer(0, tileset, 0, 0);
     
     obstaclesLayer.setScale(tileScale);
     // Enable collisions on the ground and obstacle layers, -1 is for excluding empty tiles
     obstaclesLayer.setCollisionByExclusion([-1]);
-    // Enable collision between player and tilemap layers
-    this.physics.add.collider(this.player, obstaclesLayer);
   }
 
   addLandscapeTileColumn(tilemapArr) {
@@ -288,27 +325,15 @@ export default class MainGame extends Phaser.Scene {
       return;
     }
 
-    let currentQuizIndex = 0;
+    this.quiz = quiz;
+
     this.quizWrapperElement.style.display = "block";
     // setzte Anfangsquiz
-    this.updateQuiz(currentQuizIndex, quiz);
-
-    // adjust time, currently just short for testing
-    let intervalId = setInterval(() => {
-      currentQuizIndex++;
-      if (currentQuizIndex === quiz.length) {
-        clearInterval(intervalId);
-        this.gameOver();
-      } else {
-        this.updateQuiz(currentQuizIndex, quiz);
-      }
-      
-    }, 5000)
-    
+    this.updateQuiz();
   }
 
-  updateQuiz(currentQuizIndex, quiz) {
-    const currentQuiz = quiz[currentQuizIndex];
+  updateQuiz() {
+    const currentQuiz = this.quiz[this.currentQuizIndex];
     this.questionElement.innerText = currentQuiz.question;
     // clear previous content
     this.answersElement.innerText = "";
@@ -322,39 +347,79 @@ export default class MainGame extends Phaser.Scene {
   }
 
   addAnswerBoxes(currentQuiz) {
-    // Get the camera's current scroll position
+    // wie weit x gescrollt ist
     const camScrollX = this.cameras.main.scrollX;
-    const camWidth = this.cameras.main.width;
-    const camHeight = this.cameras.main.height;
-
-    // Define the position within the visible screen
-    const obstacleX = camScrollX + camWidth * 0.8; // 80% of the way across the visible area
     
-    const usedPositions = [];
+    const usedXPositions = [];
+    // TODO: use random image
+    let imageIndex = 161; // Bild für die 1 auf dem spritesheet
     for (let i = 0; i < currentQuiz.answers.length; i++) {
-      let obstacleY = Math.floor(Math.random() * camHeight); // zufällige random position
-      // todo to also take height of box into account - answers should not overlap
-      while(usedPositions.includes(obstacleY)) {
-        obstacleY = Math.floor(Math.random() * camHeight);
+      // wähle zufällige random position für x und y aus
+      let obstacleY = Math.floor(Math.random() * sizes.height); 
+      // let obstacleX = Math.floor(Math.random() * sizes.width);
+      let obstacleX = camScrollX + sizes.width * Math.random(); 
+      console.log("obstacleX", obstacleX);
+
+      // falls zu nahe x position schon verwendet - generiere neu
+      while(checkPositionOverlap(obstacleX)) {
+        obstacleX = camScrollX + sizes.width * Math.random(); 
       }
-      usedPositions.push(obstacleY);
-      // Add an image (obstacle) at the calculated position
-      const obstacle = this.add.image(obstacleX, obstacleY, 'spriteSheet', 12);
-      obstacle.setScale(2);
-      obstacle.setOrigin(0.5, 0.5); // Set the origin point if needed (center-bottom)
+
+      usedXPositions.push(obstacleX);
+      
+      const answerOption = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', imageIndex);
+      // Schwerkraft deaktivieren
+      answerOption.body.setAllowGravity(false);
+      // markiere Objekt mit richtiger Antwort
+      answerOption.correct = currentQuiz.answers[i].correct;
+      answerOption.setScale(2); // zeige Bild doppelt so groß an
+      answerOption.setOrigin(0.5, 0.5);
+      // füge overlap detection hinzu
+      this.physics.add.overlap(this.player, answerOption, this.onCollideWithAnswer, null, this);
+      // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
+      imageIndex++; 
     }
 
-
-    // let target1 = this.physics.add.sprite(400, 300, 'spriteSheet', 17).setOrigin(0, 0);
-    // target1.body.setGravityY(0); 
-    // target1.setVelocityX(-10);
-    // let answer2 = this.physics.add.image(400, 300, 'spriteSheet', 20);
-    // let answer3 = this.physics.add.image(400, 300, 'spriteSheet', 27);
-
-    // this.physics.add.overlap(target1, this.player, this.targetHit, null, this);
-    // TODO: dont use image use tiles in tilemap otherwise does not move towards left?
-    // TODO: test
+    function checkPositionOverlap(newXPosition) {
+      for (let i = 0; i <= usedXPositions.length; i++) {
+        let usedX = usedXPositions[i];
+        // if within 50 px radius of existing one
+        if (newXPosition >= usedX - 50 && newXPosition <= usedX + 50) {
+          console.log(`${newXPosition} zu nah an ${usedX}`)
+          return true;
+        }
+      }
+      return false;
+    }
  
+  }
+
+  onCollideWithAnswer(player, answer) {
+    console.log("collided", answer);
+    if (answer.correct) {
+      this.answerObjects.clear(true, true);
+      this.coinParticles.start();
+      // spiele Punkte gesammelt Musik ab
+      this.coinSound.play();
+       // erhöhe quiz index
+      this.currentQuizIndex++;
+      // erhöhe Punkte
+      // sound should appear - reset physics reset camera (steige zum nächsten Level auf)
+      this.updateQuiz();
+    } else {
+      this.wrongAnswerSound.play();
+      // entferne falsche Antwort
+      answer.destroy();
+      // falls falsch signalisiere Punktabzug
+      this.pointsLoseAnim.setVisible(true);
+      this.pointsLoseAnim.play('lose_points');
+
+      // verstecke das Sprite sobald animation fertig
+      this.pointsLoseAnim.on('animationcomplete', () => {
+        this.pointsLoseAnim.setVisible(false);
+      });
+
+    }
   }
 
 
