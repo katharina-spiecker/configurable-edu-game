@@ -10,8 +10,6 @@ export default class MainGame extends Phaser.Scene {
     this.playerSpeedX = 80;
     this.target = null;
 
-    // where info is displayed
-    this.textScore = null;
     // this.textTime = null; // display remaining time here
 
     // get elements for displaying quiz and answers
@@ -29,7 +27,8 @@ export default class MainGame extends Phaser.Scene {
   preload() {
     this.load.audio("coinSound", "../assets/audio/coin.mp3");
     this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
-    // this.load.audio("wrongAnswerSound", "../assets/audio/kenney_impact-sounds/Audio/impactPunch_heavy_004.ogg");
+    this.load.audio("alienLanding", "../assets/audio/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg");
+  
     // this.load.audio("bgMusic", "/assets/bgMusic.mp3");
 
     // Lade tilemaps: Objekte, Hintergründe, Charaktere
@@ -60,8 +59,15 @@ export default class MainGame extends Phaser.Scene {
     this.createTileClouds();
     this.createTileLandscape();
 
+    // music
+    this.coinSound = this.sound.add("coinSound");
+    this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
+    this.alienLanding = this.sound.add("alienLanding");
+
     this.addPlayer();
-    this.answerObjects = this.physics.add.group();
+    this.alienLanding.play();
+
+    this.answerObjects = this.physics.add.staticGroup();
 
     // Enable collision between player and tilemap layers
     // TODO this.physics.add.collider(this.player, obstaclesLayer);
@@ -75,13 +81,11 @@ export default class MainGame extends Phaser.Scene {
     // for listening to moving left and right in update method
     this.cursor = this.input.keyboard.createCursorKeys();
 
-    this.textScore = this.add.text(10, 10, "Punkte: 0", {font: "16px Arial", fill: "#000000"});
+    // this.textScore = this.add.text(10, 10, "Punkte: 0", {font: "16px Arial", fill: "#000000"});
 
     // this.textTime = this.add.text(sizes.width - 300, 10, "Remaining Time", {font: "16px Arial", fill: "#000000"});
 
-    // music
-    this.coinSound = this.sound.add("coinSound");
-    this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
+    
     // this.bgMusic = this.sound.add("bgMusic");
     // this.bgMusic.play();
 
@@ -351,8 +355,8 @@ export default class MainGame extends Phaser.Scene {
     const camScrollX = this.cameras.main.scrollX;
     
     const usedXPositions = [];
-    // TODO: use random image
     let imageIndex = 161; // Bild für die 1 auf dem spritesheet
+
     for (let i = 0; i < currentQuiz.answers.length; i++) {
       // wähle zufällige random position für x und y aus
       let obstacleY = Math.floor(Math.random() * sizes.height); 
@@ -367,15 +371,20 @@ export default class MainGame extends Phaser.Scene {
 
       usedXPositions.push(obstacleX);
       
-      const answerOption = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', imageIndex);
-      // Schwerkraft deaktivieren
-      answerOption.body.setAllowGravity(false);
+      let answerSurprise;
       // markiere Objekt mit richtiger Antwort
-      answerOption.correct = currentQuiz.answers[i].correct;
-      answerOption.setScale(2); // zeige Bild doppelt so groß an
-      answerOption.setOrigin(0.5, 0.5);
+      if (currentQuiz.answers[i].correct) {
+        answerSurprise = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', 27).setScale(1.5).setOrigin(0.5, 0.5);
+        answerSurprise.correct = true;
+      } else {
+        answerSurprise = this.answerObjects.create(obstacleX, obstacleY, 'spriteSheet', 8).setScale(1.5).setOrigin(0.5, 0.5);
+        answerSurprise.correct = false;
+      }
+      const answerBackground = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', 9).setScale(2).setOrigin(0.5, 0.5);
+      const answerOption = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', imageIndex).setScale(2).setOrigin(0.5, 0.5);
+     
       // füge overlap detection hinzu
-      this.physics.add.overlap(this.player, answerOption, this.onCollideWithAnswer, null, this);
+      this.physics.add.overlap(this.player, answerSurprise, (player, answerSurprise) => this.onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption), null, this);
       // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
       imageIndex++; 
     }
@@ -394,9 +403,8 @@ export default class MainGame extends Phaser.Scene {
  
   }
 
-  onCollideWithAnswer(player, answer) {
-    console.log("collided", answer);
-    if (answer.correct) {
+  onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption) {
+    if (answerSurprise.correct) {
       this.answerObjects.clear(true, true);
       this.coinParticles.start();
       // spiele Punkte gesammelt Musik ab
@@ -409,7 +417,10 @@ export default class MainGame extends Phaser.Scene {
     } else {
       this.wrongAnswerSound.play();
       // entferne falsche Antwort
-      answer.destroy();
+      console.log(answerOption)
+      answerOption.destroy();
+      answerBackground.destroy();
+      
       // falls falsch signalisiere Punktabzug
       this.pointsLoseAnim.setVisible(true);
       this.pointsLoseAnim.play('lose_points');
