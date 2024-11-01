@@ -411,9 +411,22 @@ export default class MainGame extends Phaser.Scene {
       this.coinSound.play();
        // erhöhe quiz index
       this.currentQuizIndex++;
-      // erhöhe Punkte
+      // TODO erhöhe Punkte
+
+      // Schlüssel erscheint - Symbol um ins nächste Level aufzusteigen
+      const keySymbol = this.add.image(player.x + 10, player.y + 10, 'itemsSpriteSheet', 27).setScale(2);
+      this.tweens.add({
+        targets: keySymbol,      
+        x: 30,      
+        y: 30,                
+        duration: 2000 // Dauer der Animation in ms
+      });
+
+      // move to next level
+     
+
       // sound should appear - reset physics reset camera (steige zum nächsten Level auf)
-      this.updateQuiz();
+      // this.updateQuiz();
     } else {
       this.wrongAnswerSound.play();
       // entferne falsche Antwort
