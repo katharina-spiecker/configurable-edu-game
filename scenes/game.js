@@ -20,6 +20,9 @@ export default class MainGame extends Phaser.Scene {
     this.currentQuizIndex = 0;
     this.quiz = [];
 
+    // wird aktiviert um level zu wechseln.
+    this.levelTransitionActive = false;
+
     // tilemaps
     this.obstaclesMap = null;
   }
@@ -47,12 +50,12 @@ export default class MainGame extends Phaser.Scene {
 
   create() {
     // how long the game should stretch in unit of screens (one game screen is sizes.with wide)
-    // a question should last for 4 frames -> total frames = amount of questions times 4
+    // a question should last for 1 frame 
     const quiz = this.registry.get("quiz");
     if (quiz && quiz.length > 0) {
-      this.gameFramesAmount = quiz.length * 4;
+      this.gameFramesAmount = quiz.length;
     } else {
-      this.gameFramesAmount = 3;
+      this.gameFramesAmount = 1;
     }
 
     this.createTileBackground();
@@ -114,7 +117,15 @@ export default class MainGame extends Phaser.Scene {
   update() {
     // let remainingTime = this.timedEvent.getRemainingSeconds();
     // this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
-    
+
+    // falls in Transition: Player soll nach rechts laufen bis im nächsten Level ohne Eingabe vom Spielenden zu beachten 
+    if (this.levelTransitionActive) {
+      if (this.player.x > (this.currentQuizIndex * sizes.width)) {
+        this.stablizeLevel();
+      }
+      return;
+    }
+
     if (this.cursor.up.isDown) {
       this.player.setVelocityY(-this.playerSpeedY);
     } else if (this.cursor.down.isDown) {
@@ -163,12 +174,8 @@ export default class MainGame extends Phaser.Scene {
     // macht collision box kleiner als player
     this.player.setSize(20, 20);
 
-    // Geschwindigkeit mit der sich Player nach rechts bewegt
-    // this.player.setVelocityX(this.playerSpeedX);
-    // Kamera folgt dem Spieler auf der x Achse. Verikale Position bleibt konstant
-    // this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
-    this.cameras.main.setScroll(0, 0); 
+    this.cameras.main.setScroll(0, 0);
     this.cameras.main.setBounds(0, 0, this.obstaclesMap.widthInPixels, sizes.height); // Kamera kann nicht über den Bereich hinausgehen
     // damit player nicht über diesen Bereich hinausgehen kann
     this.physics.world.setBounds(0, 0, sizes.width, sizes.height - 54); // Höhe minus 54 px damit nicht tiefer als "Erde" möglich
@@ -209,11 +216,10 @@ export default class MainGame extends Phaser.Scene {
 
     // create tilemap for background
     const bgMap = this.make.tilemap({data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize})
-
     const bgTileset = bgMap.addTilesetImage('tilesBg');
     const bgLayer = bgMap.createLayer(0, bgTileset, 0, 0);
     bgLayer.setScale(tileScale);
-    bgLayer.setScrollFactor(0.5);
+    bgLayer.setScrollFactor(scrollFactor);
   }
 
   createTileClouds() {
@@ -259,7 +265,7 @@ export default class MainGame extends Phaser.Scene {
     // Add the tileset image to the map
     const tileset = map.addTilesetImage('tiles');
     // Create a layer for the map, passing in the name of the tileset
-    map.createLayer(0, tileset, 0, 0).setScale(tileScale).setScrollFactor(0.5);
+    map.createLayer(0, tileset, 0, 0).setScale(tileScale).setScrollFactor(scrollFactor);
   }
 
   createTileLandscape() {
@@ -339,7 +345,7 @@ export default class MainGame extends Phaser.Scene {
   updateQuiz() {
     const currentQuiz = this.quiz[this.currentQuizIndex];
     this.questionElement.innerText = currentQuiz.question;
-    // clear previous content
+    // lösche vorherigen Inhalt
     this.answersElement.innerText = "";
     // append answers
     for (let i = 0; i < currentQuiz.answers.length; i++) {
@@ -417,16 +423,12 @@ export default class MainGame extends Phaser.Scene {
       const keySymbol = this.add.image(player.x + 10, player.y + 10, 'itemsSpriteSheet', 27).setScale(2);
       this.tweens.add({
         targets: keySymbol,      
-        x: 30,      
-        y: 30,                
+        x: player.x + 30,      
+        y: player.y - 20,                
         duration: 2000 // Dauer der Animation in ms
       });
 
-      // move to next level
-     
-
-      // sound should appear - reset physics reset camera (steige zum nächsten Level auf)
-      // this.updateQuiz();
+      this.transitionToNewLevel();
     } else {
       this.wrongAnswerSound.play();
       // entferne falsche Antwort
@@ -444,6 +446,31 @@ export default class MainGame extends Phaser.Scene {
       });
 
     }
+  }
+
+  // erzeugt Übergang zum nächsten Level
+  transitionToNewLevel() {
+    this.levelTransitionActive = true; // damit Spieler temporär nicht navigieren kann
+    // player landet langsam auf dem Boden
+    this.player.setVelocityY(0);
+    // player läuft nach rechts
+    this.player.setVelocityX(this.playerSpeedX);
+    this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
+    this.physics.world.setBoundsCollision(true, false, false, true);
+  }
+
+  // fixiert die Levelansicht
+  stablizeLevel() {
+    // wo das Level anfängt
+    const leftLevelBound = sizes.width * this.currentQuizIndex;
+    this.levelTransitionActive = false;
+    this.player.setVelocityX(0);
+    this.physics.world.setBounds(leftLevelBound, 0, sizes.width, sizes.height - 54);
+    this.physics.world.setBoundsCollision(true, true, false, true);
+    this.cameras.main.setScroll(leftLevelBound, 0);
+    this.cameras.main.stopFollow();
+    // aktualisiere Quiz
+    this.updateQuiz();
   }
 
 
