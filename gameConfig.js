@@ -1,5 +1,5 @@
 
 export const sizes = {
-  width: 540,
+  width: 720,
   height: 540,
 }

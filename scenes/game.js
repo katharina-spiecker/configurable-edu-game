@@ -31,8 +31,6 @@ export default class MainGame extends Phaser.Scene {
     this.load.audio("coinSound", "../assets/audio/coin.mp3");
     this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
     this.load.audio("alienLanding", "../assets/audio/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg");
-  
-    // this.load.audio("bgMusic", "/assets/bgMusic.mp3");
 
     // Lade tilemaps: Objekte, Hintergründe, Charaktere
     this.load.image('tiles', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png');
@@ -46,6 +44,8 @@ export default class MainGame extends Phaser.Scene {
       frameWidth: 18,  // Width of each character frame
       frameHeight: 18  // Height of each character frame
     });
+
+    this.load.tilemapTiledJSON('level-1', '../assets/tilemaps/level-1.tmj');
   }
 
   create() {
@@ -58,9 +58,7 @@ export default class MainGame extends Phaser.Scene {
       this.gameFramesAmount = 1;
     }
 
-    this.createTileBackground();
-    this.createTileClouds();
-    this.createTileLandscape();
+    this.addMap();
 
     // music
     this.coinSound = this.sound.add("coinSound");
@@ -73,7 +71,8 @@ export default class MainGame extends Phaser.Scene {
     this.answerObjects = this.physics.add.staticGroup();
 
     // Enable collision between player and tilemap layers
-    // TODO this.physics.add.collider(this.player, obstaclesLayer);
+    // added from tiled layer
+    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
 
 
     this.addQuiz();
@@ -81,16 +80,8 @@ export default class MainGame extends Phaser.Scene {
     // add points to global point registry in order to access scene
     this.registry.set("points", 0);
 
-    // for listening to moving left and right in update method
+    // um auf User Eingaben zu hören
     this.cursor = this.input.keyboard.createCursorKeys();
-
-    // this.textScore = this.add.text(10, 10, "Punkte: 0", {font: "16px Arial", fill: "#000000"});
-
-    // this.textTime = this.add.text(sizes.width - 300, 10, "Remaining Time", {font: "16px Arial", fill: "#000000"});
-
-    
-    // this.bgMusic = this.sound.add("bgMusic");
-    // this.bgMusic.play();
 
     this.anims.create({
       key: 'lose_points',
@@ -150,18 +141,18 @@ export default class MainGame extends Phaser.Scene {
 
   addPlayer() {
     this.player = this.physics.add.sprite(sizes.width / 3, 0, 'spriteSheet', 4); // Extract character at frame 1
-    this.player.setOrigin(0.5, 0.5).setScale(3);
+    this.player.setOrigin(0.5, 0.5).setScale(2);
     // this.player.body.setAllowGravity(false);
 
     this.anims.create({
-      key: 'character1_walk',
+      key: 'player_walk',
       frames: this.anims.generateFrameNumbers('spriteSheet', { start: 4, end: 5 }),
       frameRate: 3,
       repeat: -1
     });
 
     // Play the animation for a specific character
-    this.player.play('character1_walk');
+    this.player.play('player_walk');
 
     // wie stark Player zurückprallen soll bei Zusammenstoß mit anderem Objekt
     this.player.setBounce(0.5);
@@ -169,164 +160,21 @@ export default class MainGame extends Phaser.Scene {
     // should not move when collided with by other objects
     this.player.setImmovable(true);
 
-    // this.player.setDepth(1); wie z-index
-
     // macht collision box kleiner als player
     this.player.setSize(20, 20);
 
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
     this.cameras.main.setScroll(0, 0);
-    this.cameras.main.setBounds(0, 0, this.obstaclesMap.widthInPixels, sizes.height); // Kamera kann nicht über den Bereich hinausgehen
+    // Kamera kann nicht über den Bereich hinausgehen
     // damit player nicht über diesen Bereich hinausgehen kann
     this.physics.world.setBounds(0, 0, sizes.width, sizes.height - 54); // Höhe minus 54 px damit nicht tiefer als "Erde" möglich
     this.physics.world.setBoundsCollision(true, true, false, true);
     this.player.setCollideWorldBounds(true);
-  }
 
-  createTileBackground() {
-    // Hintergrund bewegt sich langsamer
-    const scrollFactor = 0.3;
-    const tilemapArr = [[],[],[]];
-
-    const middleLayerSelection = [8, 9, 10];
-
-    const tileSize = 24;
-    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
-    const tileScale = sizes.height / (tileSize * tilemapArr.length);
-    // multipliziere mit scroll factor, da wenn weniger schnell, muss weniger generiert werden
-    const totalSize = this.gameFramesAmount * sizes.width * scrollFactor;
-    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
-
-    for (let i = 0; i < columnsNeeded; i++) {
-      tilemapArr.forEach((row, index) => {
-        // zweite Zeile kriegt ein zufälliges Bild
-        if (index === 1) {
-          // generiert 0, 1 oder 2
-          let randomIndex = Math.floor(Math.random() * 3)
-          row.push(middleLayerSelection[randomIndex]);
-          // letzte Zeile
-        } else if (index === 2) {
-          row.push(16);
-          // erste Zeile
-        } else {
-          row.push(0);
-        }
-      })
-    }
-
-    // create tilemap for background
-    const bgMap = this.make.tilemap({data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize})
-    const bgTileset = bgMap.addTilesetImage('tilesBg');
-    const bgLayer = bgMap.createLayer(0, bgTileset, 0, 0);
-    bgLayer.setScale(tileScale);
-    bgLayer.setScrollFactor(scrollFactor);
-  }
-
-  createTileClouds() {
-    // Wolken sollen Mittel Layer sein und daher schneller als Hintergrund, aber langsamer als Vordergrund
-    const scrollFactor = 0.6;
-
-    const tileSize = 18;
-    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
-    const tileScale = 5;
-    // multipliziere mit scroll factor, da wenn weniger schnell, muss weniger generiert werden
-    const totalSize = this.gameFramesAmount * sizes.width * scrollFactor;
-    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
-
-    // muss 2D Array sein für tilemap, allerdings brauchen wir nur eine Zeile
-    const tilemapArr = [[]];
-    let isGeneratingCloud = false;
-    const cloudTiles = [153, 154, 155];
-    let cloudIndex = 0;
-
-    for (let i = 0; i < columnsNeeded; i++) {
-      if (isGeneratingCloud) {
-        // komplette Wolke wurde generiert
-        if (cloudIndex == cloudTiles.length) {
-          // setze Werte zurück
-          cloudIndex = 0;
-          isGeneratingCloud = false;
-        } else {
-          tilemapArr[0].push(cloudTiles[cloudIndex]);
-          cloudIndex++;
-        }
-        //
-      } else {
-        // leere Tile hinzufügen
-        tilemapArr[0].push(-1);
-        if (Math.random() > 0.8) {
-          isGeneratingCloud = true;
-        }
-      }
-    }
-
-    // Create the tilemap from the 2D array
-    let map = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
-    // Add the tileset image to the map
-    const tileset = map.addTilesetImage('tiles');
-    // Create a layer for the map, passing in the name of the tileset
-    map.createLayer(0, tileset, 0, 0).setScale(tileScale).setScrollFactor(scrollFactor);
-  }
-
-  createTileLandscape() {
-    let tilemapArr = [
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, 146, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1,  -1],
-      [ -1, -1, -1, -1, -1, -1, -1, 146, -1, -1],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, 146],
-      [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-      [ -1, 88, -1, 107, 126, -1, -1, -1, 108, -1],
-      [ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-    ]
-
-    const tileSize = 18;
-    // Scale the layer to increase the size: height of game divided by size of tile times amount of rows
-    const tileScale = sizes.height / (tileSize * tilemapArr.length);
-    console.log(tileScale * 18)
-    const totalSize = this.gameFramesAmount * sizes.width;
-    const columnsNeeded = Math.ceil(totalSize / (tileSize * tileScale));
-
-    for (let i = 0; i < columnsNeeded; i++) {
-      this.addLandscapeTileColumn(tilemapArr);
-    }
-
-    // Create the tilemap from the 2D array
-    this.obstaclesMap = this.make.tilemap({ data: tilemapArr, tileWidth: tileSize, tileHeight: tileSize });
-    // Add the tileset image to the map
-    const tileset = this.obstaclesMap.addTilesetImage('tiles');
-    // Create a layer for the map, passing in the name of the tileset
-    const obstaclesLayer = this.obstaclesMap.createLayer(0, tileset, 0, 0);
-    
-    obstaclesLayer.setScale(tileScale);
-    // Enable collisions on the ground and obstacle layers, -1 is for excluding empty tiles
-    obstaclesLayer.setCollisionByExclusion([-1]);
-  }
-
-  addLandscapeTileColumn(tilemapArr) {
-    // 107: mushroom, 108: big mushroom, 128: tiny mushroom
-    const surpriseObstacles = [107, 108, 128];
-
-    tilemapArr.forEach((row, index) => {
-      // if lowest level
-      if (index === tilemapArr.length - 1) {
-        row.push(2);
-        // if second lowest level
-      } else if (index === tilemapArr.length - 2) {
-        // nur ein kleiner Teil des Bodens soll befüllt werden
-        if (Math.random() > 0.8) {
-          // wähle zufällig aus
-          const randIndex = Math.floor(Math.random() * surpriseObstacles.length);
-          row.push(surpriseObstacles[randIndex]);
-        } else {
-          row.push(-1);
-        }
-      } else {
-        row.push(-1);
-      }
-    })
+    // verschiebe Player hinter den foregroundLayer
+    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
+    // für berühren von Stacheln
+    this.physics.add.overlap(this.player, this.spikeGroup, this.hitSpikes, null, this);
   }
 
   addQuiz() {
@@ -430,22 +278,22 @@ export default class MainGame extends Phaser.Scene {
 
       this.transitionToNewLevel();
     } else {
-      this.wrongAnswerSound.play();
+      this.losePoints();
       // entferne falsche Antwort
-      console.log(answerOption)
       answerOption.destroy();
       answerBackground.destroy();
-      
-      // falls falsch signalisiere Punktabzug
-      this.pointsLoseAnim.setVisible(true);
-      this.pointsLoseAnim.play('lose_points');
-
-      // verstecke das Sprite sobald animation fertig
-      this.pointsLoseAnim.on('animationcomplete', () => {
-        this.pointsLoseAnim.setVisible(false);
-      });
-
     }
+  }
+
+  losePoints() {
+    this.wrongAnswerSound.play();
+    // falls falsch signalisiere Punktabzug
+    this.pointsLoseAnim.setVisible(true);
+    this.pointsLoseAnim.play('lose_points');
+    // verstecke das Sprite sobald animation fertig
+    this.pointsLoseAnim.on('animationcomplete', () => {
+      this.pointsLoseAnim.setVisible(false);
+    });
   }
 
   // erzeugt Übergang zum nächsten Level
@@ -471,6 +319,38 @@ export default class MainGame extends Phaser.Scene {
     this.cameras.main.stopFollow();
     // aktualisiere Quiz
     this.updateQuiz();
+  }
+
+  addMap() {
+    this.map = this.make.tilemap({key: 'level-1'});
+    // name in tiled verwendet (tileset) und key der in preload angegeben
+    const tileset = this.map.addTilesetImage('tileset', 'tiles');
+
+    // 1. Argument name von tiled
+    this.landscapeLayer = this.map.createLayer("Landscape", tileset).setScale(2).setCollision([42, 43, 44, 49, 50, 51, 62, 63, 64], true);
+
+    this.foregroundLayer = this.map.createLayer("Foreground", tileset).setScale(2);
+
+    // const debugGraphics = this.add.graphics();
+    // layer.renderDebug(debugGraphics)
+
+    this.spikeGroup = this.physics.add.group({immovable: true, allowGravity: false});
+
+    this.map.getObjectLayer('Spikes').objects.forEach(object => {
+      if (object.gid === 69) {
+        this.spikeGroup
+          .create(object.x * 2, object.y * 2, "itemsSpriteSheet", object.gid - 1) // ziehe 1 ab da frames 0 indexed
+          .setOrigin(0, 1) 
+          .setScale(2)
+          .setSize(18, 8) // da spikes nicht die ganze Kachel füllen
+          .setOffset(0, 10)
+      }
+    })
+  }
+
+  hitSpikes() {
+    // TODO, add more logic
+    this.losePoints();
   }
 
 
