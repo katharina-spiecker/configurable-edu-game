@@ -33,7 +33,7 @@
         {
          "draworder":"topdown",
          "id":8,
-         "name":"Spikes",
+         "name":"Objects",
          "objects":[
                 {
                  "gid":69,
@@ -58,6 +58,54 @@
                  "width":18,
                  "x":290.08592321755,
                  "y":72.6197440585009
+                }, 
+                {
+                 "gid":10,
+                 "height":18,
+                 "id":12,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":18,
+                 "x":233.778793418647,
+                 "y":109.18281535649
+                }, 
+                {
+                 "gid":10,
+                 "height":18,
+                 "id":17,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":18,
+                 "x":89.7202925045704,
+                 "y":218.140767824497
+                }, 
+                {
+                 "gid":10,
+                 "height":18,
+                 "id":18,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":18,
+                 "x":69.9762340036563,
+                 "y":145.014625228519
+                }, 
+                {
+                 "gid":10,
+                 "height":18,
+                 "id":19,
+                 "name":"",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":18,
+                 "x":323.7239488117,
+                 "y":218.140767824497
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -66,7 +114,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":3,
+ "nextobjectid":22,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.0",

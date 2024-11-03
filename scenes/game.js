@@ -205,56 +205,40 @@ export default class MainGame extends Phaser.Scene {
   }
 
   addAnswerBoxes(currentQuiz) {
-    // wie weit x gescrollt ist
-    const camScrollX = this.cameras.main.scrollX;
-    
-    const usedXPositions = [];
+    // erstelle Boxen - schon 4 potetielle Orte vorgegeben in Object Layer
+    let boxesArr = this.map.getObjectLayer('Objects').objects.filter(object => object.gid === 10);
     let imageIndex = 161; // Bild für die 1 auf dem spritesheet
 
     for (let i = 0; i < currentQuiz.answers.length; i++) {
-      // wähle zufällige random position für x und y aus
-      let obstacleY = Math.floor(Math.random() * sizes.height); 
-      // let obstacleX = Math.floor(Math.random() * sizes.width);
-      let obstacleX = camScrollX + sizes.width * Math.random(); 
-      console.log("obstacleX", obstacleX);
+        let currentBox = boxesArr[i];
+        let xPosition = currentBox.x * 2;
+        let yPosition = currentBox.y * 2;
 
-      // falls zu nahe x position schon verwendet - generiere neu
-      while(checkPositionOverlap(obstacleX)) {
-        obstacleX = camScrollX + sizes.width * Math.random(); 
-      }
-
-      usedXPositions.push(obstacleX);
-      
-      let answerSurprise;
-      // markiere Objekt mit richtiger Antwort
-      if (currentQuiz.answers[i].correct) {
-        answerSurprise = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', 27).setScale(1.5).setOrigin(0.5, 0.5);
-        answerSurprise.correct = true;
-      } else {
-        answerSurprise = this.answerObjects.create(obstacleX, obstacleY, 'spriteSheet', 8).setScale(1.5).setOrigin(0.5, 0.5);
-        answerSurprise.correct = false;
-      }
-      const answerBackground = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', 9).setScale(2).setOrigin(0.5, 0.5);
-      const answerOption = this.answerObjects.create(obstacleX, obstacleY, 'itemsSpriteSheet', imageIndex).setScale(2).setOrigin(0.5, 0.5);
-     
-      // füge overlap detection hinzu
-      this.physics.add.overlap(this.player, answerSurprise, (player, answerSurprise) => this.onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption), null, this);
-      // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
-      imageIndex++; 
-    }
-
-    function checkPositionOverlap(newXPosition) {
-      for (let i = 0; i <= usedXPositions.length; i++) {
-        let usedX = usedXPositions[i];
-        // if within 50 px radius of existing one
-        if (newXPosition >= usedX - 50 && newXPosition <= usedX + 50) {
-          console.log(`${newXPosition} zu nah an ${usedX}`)
-          return true;
+        // erstelle Boxinhalt je nachdem ob richtige oder falsche Antwort
+        let answerSurprise;
+        if (currentQuiz.answers[i].correct) {
+          answerSurprise = this.answerObjects.create(xPosition, yPosition, 'itemsSpriteSheet', 27).setOrigin(0, 1).setScale(1.5);
+          answerSurprise.correct = true;
+        } else {
+          answerSurprise = this.answerObjects.create(xPosition, yPosition, 'spriteSheet', 8).setOrigin(0, 1).setScale(1.5);
+          answerSurprise.correct = false;
         }
-      }
-      return false;
+
+        // erstelle Box
+        const answerBackground = this.answerObjects
+          .create(xPosition, yPosition, "itemsSpriteSheet", 9) // Frame 9 enthält Box
+          .setOrigin(0, 1)
+          .setScale(2)
+          .setSize(30, 30)
+          
+        // erstelle Zahl
+        const answerOption = this.answerObjects.create(xPosition, yPosition, 'itemsSpriteSheet', imageIndex).setOrigin(0, 1).setScale(2);
+        // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
+        imageIndex++;
+
+        // füge overlap detection hinzu
+        this.physics.add.overlap(this.player, answerSurprise, (player, answerSurprise) => this.onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption), null, this);
     }
- 
   }
 
   onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption) {
@@ -336,7 +320,7 @@ export default class MainGame extends Phaser.Scene {
 
     this.spikeGroup = this.physics.add.group({immovable: true, allowGravity: false});
 
-    this.map.getObjectLayer('Spikes').objects.forEach(object => {
+    this.map.getObjectLayer('Objects').objects.forEach(object => {
       if (object.gid === 69) {
         this.spikeGroup
           .create(object.x * 2, object.y * 2, "itemsSpriteSheet", object.gid - 1) // ziehe 1 ab da frames 0 indexed

@@ -36,16 +36,18 @@ export default class GameStart extends Phaser.Scene {
     this.input.addEventListener("input", (e) => {
       const id = e.target.value.trim();
       // mongodb id always 24 - TODO, change to different id later
-      console.log(id.length)
       if (id.length === 24) {
         this.loadQuiz(id);
       } else {
         this.text.setText("Die Spiel id ist nicht korrekt");
+        // TODO: delete once dev complete
+        this.loadQuiz("670114ec9f2becc8986974e6");
       }
     })
   }
 
-  loadQuiz(quizId = "670114ec9f2becc8986974e6") {
+  // 670114ec9f2becc8986974e6
+  loadQuiz(quizId) {
     // Füge Text Loading
     this.text.setText("Loading...");
     // lade Spieldaten
