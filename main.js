@@ -22,7 +22,7 @@ const config = {
       gravity: {
         y: 300
       },
-      debug: true
+      debug: false
     }
   },
   scene: [GameStart, MainGame, GameOver]

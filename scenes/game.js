@@ -148,36 +148,33 @@ export default class MainGame extends Phaser.Scene {
         // x muss verschoben werden wegen endless runner Effekt
         let xPosition = (sizes.width * this.currentQuizIndex) + currentBox.x * 2;
         let yPosition = currentBox.y * 2;
-
         // erstelle Boxinhalt je nachdem ob richtige oder falsche Antwort
         let answerSurprise;
-        if (currentQuiz.answers[i].correct) {
+        let answerIsCorrect = currentQuiz.answers[i].correct;
+        if (answerIsCorrect) {
           answerSurprise = this.answerObjects.create(xPosition, yPosition, 'itemsSpriteSheet', 27).setOrigin(0, 1).setScale(1.5);
-          answerSurprise.correct = true;
         } else {
           answerSurprise = this.answerObjects.create(xPosition, yPosition, 'spriteSheet', 8).setOrigin(0, 1).setScale(1.5);
-          answerSurprise.correct = false;
         }
-
         // erstelle Box
-        const answerBackground = this.answerObjects
+        const answerBox = this.answerObjects
           .create(xPosition, yPosition, "itemsSpriteSheet", 9) // Frame 9 enthält Box
           .setOrigin(0, 1)
           .setScale(2)
-          .setSize(30, 30)
-          
+          .setSize(32, 32)
+          .setOffset(8, -26);
         // erstelle Zahl
         const answerOption = this.answerObjects.create(xPosition, yPosition, 'itemsSpriteSheet', imageIndex).setOrigin(0, 1).setScale(2);
         // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
         imageIndex++;
-
         // füge overlap detection hinzu
-        this.physics.add.overlap(this.player, answerSurprise, (player, answerSurprise) => this.onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption), null, this);
+        this.physics.add.overlap(this.player, answerBox, (player, answerBox) => this.onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption), null, this);
     }
   }
 
-  onCollideWithAnswer(player, answerSurprise, answerBackground, answerOption) {
-    if (answerSurprise.correct) {
+  onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption) {
+    if (answerIsCorrect) {
+      // lösche alle Antwortboxen
       this.answerObjects.clear(true, true);
       this.coinParticles.start();
       // spiele Punkte gesammelt Musik ab
@@ -204,9 +201,9 @@ export default class MainGame extends Phaser.Scene {
       }
     } else {
       this.losePoints();
-      // entferne falsche Antwort
+      // lösche falsche Antwortbox, answerSurprise (Bombe) bleibt da
       answerOption.destroy();
-      answerBackground.destroy();
+      answerBox.destroy();
     }
   }
 
