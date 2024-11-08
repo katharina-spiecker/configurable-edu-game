@@ -27,6 +27,7 @@ export default class MainGame extends Phaser.Scene {
   create() {
     // Punktestand in registry speichern, sodass auch in gameover Szene Zugriff
     this.registry.set("points", 0);
+    this.registry.set("lives", 3);
     this.currentQuizIndex = 0;
     // wird aktiviert um level zu wechseln.
     this.levelTransitionActive = false;
@@ -86,13 +87,6 @@ export default class MainGame extends Phaser.Scene {
     this.playerSpeedX = 50;
     this.player = this.physics.add.sprite(sizes.width / 3, 0, 'spriteSheet', 4); // Extract character at frame 1
     this.player.setOrigin(0.5, 0.5).setScale(2);
-    // this.player.body.setAllowGravity(false);
-    this.anims.create({
-      key: 'player_walk',
-      frames: this.anims.generateFrameNumbers('spriteSheet', { start: 4, end: 5 }),
-      frameRate: 3,
-      repeat: -1
-    });
     // Play the animation for a specific character
     this.player.play('player_walk');
     // wie stark Player zurückprallen soll bei Zusammenstoß mit anderem Objekt
@@ -176,7 +170,7 @@ export default class MainGame extends Phaser.Scene {
     if (answerIsCorrect) {
       // lösche alle Antwortboxen
       this.answerObjects.clear(true, true);
-      this.coinParticles.start();
+      this.diamondParticles.start();
       // spiele Punkte gesammelt Musik ab
       this.coinSound.play();
       // erhöhe Punkte
@@ -287,8 +281,8 @@ export default class MainGame extends Phaser.Scene {
     this.pointsLoseAnim.setVisible(false);
     this.pointsLoseAnim.setScale(2);
 
-    this.coinParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
-      frame: 151,
+    this.diamondParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
+      frame: 67,
       speed: 100,
       gravity: 50,
       scale: 2,
@@ -296,6 +290,6 @@ export default class MainGame extends Phaser.Scene {
       emitting: false
     });
 
-    this.coinParticles.startFollow(this.player, 10, 10, true);
+    this.diamondParticles.startFollow(this.player, 10, 10, true);
   }
 }

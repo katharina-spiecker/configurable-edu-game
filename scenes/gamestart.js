@@ -19,14 +19,14 @@ export default class GameStart extends Phaser.Scene {
   create() {
     // Zeige Animation of Spielcharacter während auf Spielerinput warten
     this.anims.create({
-      key: 'loading_animation',
+      key: 'player_walk',
       frames: this.anims.generateFrameNumbers('spriteSheet', { start: 4, end: 5 }),
-      frameRate: 3, // frames per second
+      frameRate: 3,
       repeat: -1
     });
     this.loadingAnim = this.add.sprite(sizes.width / 2, 200, 'spriteSheet', 4);
     this.loadingAnim.setScale(5);
-    this.loadingAnim.play('loading_animation');
+    this.loadingAnim.play('player_walk');
 
     this.text = this.add.text(sizes.width / 2, 300, "Gebe den Spielcode ein", {font: "30px Arial", fill: "#ffffff"}).setOrigin(0.5, 0.5);
     
@@ -83,6 +83,7 @@ export default class GameStart extends Phaser.Scene {
       textBtn.on('pointerdown', () => {
         this.input.remove();
         this.scene.start("MainGame")
+        // this.scene.start("GameOver");
       })
     })
     .catch(err => console.error(err))
