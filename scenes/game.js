@@ -4,123 +4,64 @@ import { sizes } from '../gameConfig';
 export default class MainGame extends Phaser.Scene {
   constructor() {
     super("MainGame");
-    this.player = null;
-    this.cursor = null;
-    this.playerSpeedY = 300;
-    this.playerSpeedX = 80;
-    this.target = null;
-
-    // this.textTime = null; // display remaining time here
-
-    // get elements for displaying quiz and answers
-    this.quizWrapperElement = document.getElementById("quiz");
-    this.questionElement = document.getElementById("quiz-question");
-    this.answersElement = document.getElementById("quiz-answers");
-
-    this.currentQuizIndex = 0;
-    this.quiz = [];
-
-    // wird aktiviert um level zu wechseln.
-    this.levelTransitionActive = false;
-
-    // tilemaps
-    this.obstaclesMap = null;
   }
 
   preload() {
     this.load.audio("coinSound", "../assets/audio/coin.mp3");
     this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
     this.load.audio("alienLanding", "../assets/audio/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg");
-
-    // Lade tilemaps: Objekte, Hintergründe, Charaktere
-    this.load.image('tiles', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png');
+    this.load.spritesheet('itemsSpriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png', {
+      frameWidth: 18,
+      frameHeight: 18
+    });
     this.load.image('tilesBg', '../assets/kenney_pixel-platformer/Tilemap/tilemap-backgrounds_packed.png');
     this.load.spritesheet('spriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap-characters_packed.png', {
-      frameWidth: 24,  // Width of each character frame
-      frameHeight: 24  // Height of each character frame
+      frameWidth: 24, 
+      frameHeight: 24
     });
-
-    this.load.spritesheet('itemsSpriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png', {
-      frameWidth: 18,  // Width of each character frame
-      frameHeight: 18  // Height of each character frame
-    });
-
     this.load.tilemapTiledJSON('level-1', '../assets/tilemaps/level-1.tmj');
+    this.load.tilemapTiledJSON('level-2', '../assets/tilemaps/level-2.tmj');
+    this.load.tilemapTiledJSON('level-3', '../assets/tilemaps/level-3.tmj');
   }
 
   create() {
-    // how long the game should stretch in unit of screens (one game screen is sizes.with wide)
-    // a question should last for 1 frame 
-    const quiz = this.registry.get("quiz");
-    if (quiz && quiz.length > 0) {
-      this.gameFramesAmount = quiz.length;
-    } else {
-      this.gameFramesAmount = 1;
-    }
-
-    this.addMap();
-
-    // music
+    // Punktestand in registry speichern, sodass auch in gameover Szene Zugriff
+    this.registry.set("points", 0);
+    this.currentQuizIndex = 0;
+    // wird aktiviert um level zu wechseln.
+    this.levelTransitionActive = false;
+    // Music dem Sound Manager hinzufügen
     this.coinSound = this.sound.add("coinSound");
     this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
     this.alienLanding = this.sound.add("alienLanding");
-
+    // Erstellt Spielwelt basierend auf Tilemap
+    this.tilemapKeys = ['level-1', 'level-2', 'level-3'];
+    this.addMap();
+    // Spieler hinzufügen
     this.addPlayer();
-    this.alienLanding.play();
-
-    this.answerObjects = this.physics.add.staticGroup();
-
-    // Enable collision between player and tilemap layers
-    // added from tiled layer
-    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
-
-
+    // verschiebe Player hinter den foregroundLayer
+    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
     this.addQuiz();
-
-    // add points to global point registry in order to access scene
-    this.registry.set("points", 0);
-
+    // Kollision zwischen Player und Landscape Layer
+    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
     // um auf User Eingaben zu hören
     this.cursor = this.input.keyboard.createCursorKeys();
-
-    this.anims.create({
-      key: 'lose_points',
-      frames: this.anims.generateFrameNumbers('itemsSpriteSheet', { start: 44, end: 46 }),
-      frameRate: 3
-    });
-
-    this.pointsLoseAnim = this.add.sprite(sizes.width - 30, 30, 'itemsSpriteSheet', 44);
-    this.pointsLoseAnim.setVisible(false);
-    this.pointsLoseAnim.setScale(2);
-
-    this.coinParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
-      frame: 151,
-      speed: 100,
-      gravity: 50,
-      scale: 2,
-      duration: 100,
-      emitting: false
-    });
-
-    this.coinParticles.startFollow(this.player, 10, 10, true);
+    this.creatAnimations();
+    // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
+    this.cameras.main.setScroll(0, 0);
   }
 
   update() {
-    // let remainingTime = this.timedEvent.getRemainingSeconds();
-    // this.textTime.setText(`Remaining time: ${Math.floor(remainingTime)}`);
-
-    // falls in Transition: Player soll nach rechts laufen bis im nächsten Level ohne Eingabe vom Spielenden zu beachten 
     if (this.levelTransitionActive) {
       if (this.player.x > (this.currentQuizIndex * sizes.width)) {
         this.stablizeLevel();
       }
-      return;
     }
 
     if (this.cursor.up.isDown) {
-      this.player.setVelocityY(-this.playerSpeedY);
+      this.player.setVelocityY(-this.playerSpeedUp);
     } else if (this.cursor.down.isDown) {
-      this.player.setVelocityY(this.playerSpeedY)
+      this.player.setVelocityY(this.playerSpeedDown);
     } else if (this.cursor.right.isDown) {
       this.player.setVelocityX(this.playerSpeedX * 3);
     } else if (this.cursor.left.isDown) {
@@ -140,52 +81,45 @@ export default class MainGame extends Phaser.Scene {
   }
 
   addPlayer() {
+    this.playerSpeedUp = 200;
+    this.playerSpeedDown = 100;
+    this.playerSpeedX = 50;
     this.player = this.physics.add.sprite(sizes.width / 3, 0, 'spriteSheet', 4); // Extract character at frame 1
     this.player.setOrigin(0.5, 0.5).setScale(2);
     // this.player.body.setAllowGravity(false);
-
     this.anims.create({
       key: 'player_walk',
       frames: this.anims.generateFrameNumbers('spriteSheet', { start: 4, end: 5 }),
       frameRate: 3,
       repeat: -1
     });
-
     // Play the animation for a specific character
     this.player.play('player_walk');
-
     // wie stark Player zurückprallen soll bei Zusammenstoß mit anderem Objekt
     this.player.setBounce(0.5);
-
     // should not move when collided with by other objects
     this.player.setImmovable(true);
-
     // macht collision box kleiner als player
     this.player.setSize(20, 20);
-
-    // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
-    this.cameras.main.setScroll(0, 0);
-    // Kamera kann nicht über den Bereich hinausgehen
-    // damit player nicht über diesen Bereich hinausgehen kann
+    // Kamera kann nicht über den Bereich hinausgehen damit player nicht über diesen Bereich hinausgehen kann
     this.physics.world.setBounds(0, 0, sizes.width, sizes.height - 54); // Höhe minus 54 px damit nicht tiefer als "Erde" möglich
     this.physics.world.setBoundsCollision(true, true, false, true);
     this.player.setCollideWorldBounds(true);
-
-    // verschiebe Player hinter den foregroundLayer
-    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
     // für berühren von Stacheln
-    this.physics.add.overlap(this.player, this.spikeGroup, this.hitSpikes, null, this);
+    this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
+    // Musik abspielen, sobald Player hinzugefügt wurde
+    this.alienLanding.play();
   }
 
   addQuiz() {
-    const quiz = this.registry.get("quiz");
-    if (!quiz || quiz.length === 0) {
-      return;
-    }
-
-    this.quiz = quiz;
-
+    // DOM Elemente zur Darstellung des Quiz
+    this.quizWrapperElement = document.getElementById("quiz");
+    this.questionElement = document.getElementById("quiz-question");
+    this.answersElement = document.getElementById("quiz-answers");
     this.quizWrapperElement.style.display = "block";
+    // init Werte
+    this.quiz = this.registry.get("quiz");
+    this.answerObjects = this.physics.add.staticGroup();
     // setzte Anfangsquiz
     this.updateQuiz();
   }
@@ -211,7 +145,8 @@ export default class MainGame extends Phaser.Scene {
 
     for (let i = 0; i < currentQuiz.answers.length; i++) {
         let currentBox = boxesArr[i];
-        let xPosition = currentBox.x * 2;
+        // x muss verschoben werden wegen endless runner Effekt
+        let xPosition = (sizes.width * this.currentQuizIndex) + currentBox.x * 2;
         let yPosition = currentBox.y * 2;
 
         // erstelle Boxinhalt je nachdem ob richtige oder falsche Antwort
@@ -247,9 +182,8 @@ export default class MainGame extends Phaser.Scene {
       this.coinParticles.start();
       // spiele Punkte gesammelt Musik ab
       this.coinSound.play();
-       // erhöhe quiz index
-      this.currentQuizIndex++;
-      // TODO erhöhe Punkte
+      // erhöhe Punkte
+      this.registry.set("points", this.registry.get("points") + 5);
 
       // Schlüssel erscheint - Symbol um ins nächste Level aufzusteigen
       const keySymbol = this.add.image(player.x + 10, player.y + 10, 'itemsSpriteSheet', 27).setScale(2);
@@ -260,7 +194,14 @@ export default class MainGame extends Phaser.Scene {
         duration: 2000 // Dauer der Animation in ms
       });
 
-      this.transitionToNewLevel();
+      // erhöhe quiz index
+      this.currentQuizIndex++;
+      // check ob Quiz durchgespielt
+      if (this.currentQuizIndex < this.quiz.length) {
+        this.transitionToNewLevel();
+      } else {
+        this.gameOver();
+      }
     } else {
       this.losePoints();
       // entferne falsche Antwort
@@ -278,52 +219,57 @@ export default class MainGame extends Phaser.Scene {
     this.pointsLoseAnim.on('animationcomplete', () => {
       this.pointsLoseAnim.setVisible(false);
     });
+    this.registry.set("points", this.registry.get("points") - 2);
   }
 
   // erzeugt Übergang zum nächsten Level
   transitionToNewLevel() {
-    this.levelTransitionActive = true; // damit Spieler temporär nicht navigieren kann
-    // player landet langsam auf dem Boden
-    this.player.setVelocityY(0);
-    // player läuft nach rechts
-    this.player.setVelocityX(this.playerSpeedX);
+    // flag Variable, benötigt in update Funktion
+    this.levelTransitionActive = true;
+    // update map
+    this.addMap();
+    // verschiebe Player nach vorne hinter den foregroundLayer
+    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
+    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
+    // aktualisiere Quiz
+    this.updateQuiz();
     this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
+    this.cameras.main.setBounds(0, 0, (this.currentQuizIndex + 1) * sizes.width, sizes.height);
     this.physics.world.setBoundsCollision(true, false, false, true);
   }
 
   // fixiert die Levelansicht
   stablizeLevel() {
-    // wo das Level anfängt
-    const leftLevelBound = sizes.width * this.currentQuizIndex;
     this.levelTransitionActive = false;
-    this.player.setVelocityX(0);
+    const leftLevelBound = sizes.width * this.currentQuizIndex;
     this.physics.world.setBounds(leftLevelBound, 0, sizes.width, sizes.height - 54);
     this.physics.world.setBoundsCollision(true, true, false, true);
-    this.cameras.main.setScroll(leftLevelBound, 0);
-    this.cameras.main.stopFollow();
-    // aktualisiere Quiz
-    this.updateQuiz();
   }
 
   addMap() {
-    this.map = this.make.tilemap({key: 'level-1'});
-    // name in tiled verwendet (tileset) und key der in preload angegeben
-    const tileset = this.map.addTilesetImage('tileset', 'tiles');
+    // wählt eine zufällige Landschaft aus
+    const randomMapKey = this.tilemapKeys[Math.floor(Math.random() * this.tilemapKeys.length)];
 
+    this.map = this.make.tilemap({key: randomMapKey});
+    // Argumente: name der in Tiled verwendet wurde, key der in preload
+    const tileset = this.map.addTilesetImage('tileset', 'itemsSpriteSheet');
+    const backgroundTileset = this.map.addTilesetImage('background', 'tilesBg');
+
+    const offsetX = this.currentQuizIndex * sizes.width;
     // 1. Argument name von tiled
-    this.landscapeLayer = this.map.createLayer("Landscape", tileset).setScale(2).setCollision([42, 43, 44, 49, 50, 51, 62, 63, 64], true);
-
-    this.foregroundLayer = this.map.createLayer("Foreground", tileset).setScale(2);
-
-    // const debugGraphics = this.add.graphics();
-    // layer.renderDebug(debugGraphics)
-
+    this.map.createLayer("Background", backgroundTileset, offsetX).setScale(2);
+    this.landscapeLayer = this.map.createLayer("Landscape", tileset, offsetX).setScale(2).setCollision([42, 43, 44, 48, 49, 50, 51, 61, 62, 63, 64], true);
+    this.foregroundLayer = this.map.createLayer("Foreground", tileset, offsetX).setScale(2);
     this.spikeGroup = this.physics.add.group({immovable: true, allowGravity: false});
 
     this.map.getObjectLayer('Objects').objects.forEach(object => {
       if (object.gid === 69) {
+        // berechne x und y position
+        let xPosition = (sizes.width * this.currentQuizIndex) + object.x * 2;
+        let yPosition = object.y * 2;
+
         this.spikeGroup
-          .create(object.x * 2, object.y * 2, "itemsSpriteSheet", object.gid - 1) // ziehe 1 ab da frames 0 indexed
+          .create(xPosition, yPosition, "itemsSpriteSheet", object.gid - 1) // ziehe 1 ab da frames 0 indexed
           .setOrigin(0, 1) 
           .setScale(2)
           .setSize(18, 8) // da spikes nicht die ganze Kachel füllen
@@ -331,11 +277,28 @@ export default class MainGame extends Phaser.Scene {
       }
     })
   }
+  
 
-  hitSpikes() {
-    // TODO, add more logic
-    this.losePoints();
+  creatAnimations() {
+    this.anims.create({
+      key: 'lose_points',
+      frames: this.anims.generateFrameNumbers('itemsSpriteSheet', { start: 44, end: 46 }),
+      frameRate: 3
+    });
+
+    this.pointsLoseAnim = this.add.sprite(sizes.width - 30, 30, 'itemsSpriteSheet', 44);
+    this.pointsLoseAnim.setVisible(false);
+    this.pointsLoseAnim.setScale(2);
+
+    this.coinParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
+      frame: 151,
+      speed: 100,
+      gravity: 50,
+      scale: 2,
+      duration: 100,
+      emitting: false
+    });
+
+    this.coinParticles.startFollow(this.player, 10, 10, true);
   }
-
-
 }

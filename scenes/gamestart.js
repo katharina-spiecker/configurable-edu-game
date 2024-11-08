@@ -41,12 +41,12 @@ export default class GameStart extends Phaser.Scene {
       } else {
         this.text.setText("Die Spiel id ist nicht korrekt");
         // TODO: delete once dev complete
-        this.loadQuiz("670114ec9f2becc8986974e6");
+        this.loadQuiz("672b986a6e527f78cd516624");
       }
     })
   }
 
-  // 670114ec9f2becc8986974e6
+  // 672b986a6e527f78cd516624
   loadQuiz(quizId) {
     // Füge Text Loading
     this.text.setText("Loading...");
@@ -59,6 +59,10 @@ export default class GameStart extends Phaser.Scene {
       return res.json();
     })
     .then(data => {
+      if (data.quiz.length === 0) {
+        this.text.setText("Das Thema muss mindestens ein Quiz enthalten.");
+        return;
+      }
       // TODO: make sure it is visible for at least 3 seconds
       this.text.destroy();
       // speichere Quizdaten, damit verfügbar in anderen Szenen
