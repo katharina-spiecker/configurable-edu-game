@@ -31,6 +31,8 @@ export default class MainGame extends Phaser.Scene {
     this.currentQuizIndex = 0;
     // wird aktiviert um level zu wechseln.
     this.levelTransitionActive = false;
+    // Flag Variable fürs Punkte abziehen
+    this.pointsDecreaseBlocked = false;
     // Music dem Sound Manager hinzufügen
     this.coinSound = this.sound.add("coinSound");
     this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
@@ -208,6 +210,7 @@ export default class MainGame extends Phaser.Scene {
       if (this.currentQuizIndex < this.quiz.length) {
         this.transitionToNewLevel();
       } else {
+        this.registry.set("quizCompleted", true);
         this.gameOver();
       }
     } else {
@@ -219,6 +222,7 @@ export default class MainGame extends Phaser.Scene {
         this.livesDisplay.setTexture('itemsSpriteSheet', 46);
       }
       if (newLivesCount === 0) {
+        this.registry.set("quizCompleted", false);
         this.gameOver();
       }
       // verstecke das Sprite sobald animation fertig
@@ -231,9 +235,19 @@ export default class MainGame extends Phaser.Scene {
 
   losePoints() {
     this.wrongAnswerSound.play();
-    const newPoints = this.registry.get("points") - 2;
-    this.registry.set("points", newPoints);
-    this.pointsDisplay.setText(newPoints);
+    // innerhalb der nächsten 3 Sekunden werden nur einmal Punkte abgezogen damit Spieler Zeit hat Position zu verändern
+    if (!this.pointsDecreaseBlocked) {
+      const newPoints = this.registry.get("points") - 2;
+      this.registry.set("points", newPoints);
+      this.pointsDisplay.setText(newPoints);
+      this.pointsDecreaseBlocked = true;
+      this.time.addEvent({
+        delay: 3000, // 3 Sekunden
+        callback: function(){ this.pointsDecreaseBlocked = false },
+        callbackScope: this // callback scope
+      });
+    }
+    
   }
 
   // erzeugt Übergang zum nächsten Level
