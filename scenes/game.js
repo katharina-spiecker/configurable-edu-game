@@ -47,7 +47,22 @@ export default class MainGame extends Phaser.Scene {
     this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
     // um auf User Eingaben zu hören
     this.cursor = this.input.keyboard.createCursorKeys();
-    this.creatAnimations();
+    // Anzeige Leben
+    this.livesDisplay = this.add.sprite(sizes.width - 30, 10, 'itemsSpriteSheet', 44).setOrigin(0.5, 0).setScale(2).setScrollFactor(0);
+    // Anzeige Punkte
+    this.diamondDisplay = this.add.sprite(sizes.width - 70, 10, 'itemsSpriteSheet', 67).setOrigin(0.5, 0).setScale(2).setScrollFactor(0);
+    this.pointsDisplay = this.add.text(sizes.width - 100, 13, "0", {font: "28px Arial", fill: "#000000"}).setOrigin(0.5, 0).setScrollFactor(0);
+
+    this.diamondEmitter = this.add.particles(0, 0, 'itemsSpriteSheet', {
+      frame: 67,
+      speed: 100,
+      gravity: 50,
+      scale: 2,
+      duration: 100,
+      emitting: false
+    });
+
+    this.diamondEmitter.startFollow(this.player, 10, 10, true);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
     this.cameras.main.setScroll(0, 0);
   }
@@ -174,7 +189,9 @@ export default class MainGame extends Phaser.Scene {
       // spiele Punkte gesammelt Musik ab
       this.coinSound.play();
       // erhöhe Punkte
-      this.registry.set("points", this.registry.get("points") + 5);
+      const newPoints = this.registry.get("points") + 5;
+      this.registry.set("points", newPoints);
+      this.pointsDisplay.setText(newPoints);
 
       // Schlüssel erscheint - Symbol um ins nächste Level aufzusteigen
       const keySymbol = this.add.image(player.x + 10, player.y + 10, 'itemsSpriteSheet', 27).setScale(2);
@@ -194,7 +211,18 @@ export default class MainGame extends Phaser.Scene {
         this.gameOver();
       }
     } else {
-      this.losePoints();
+      const newLivesCount = this.registry.get("lives") - 1;
+      this.registry.set("lives", newLivesCount);
+      if (newLivesCount == 2) {
+        this.livesDisplay.setTexture('itemsSpriteSheet', 45);
+      } else if (newLivesCount == 1) {
+        this.livesDisplay.setTexture('itemsSpriteSheet', 46);
+      }
+      if (newLivesCount === 0) {
+        this.gameOver();
+      }
+      // verstecke das Sprite sobald animation fertig
+      this.wrongAnswerSound.play();
       // lösche falsche Antwortbox, answerSurprise (Bombe) bleibt da
       answerOption.destroy();
       answerBox.destroy();
@@ -203,14 +231,9 @@ export default class MainGame extends Phaser.Scene {
 
   losePoints() {
     this.wrongAnswerSound.play();
-    // falls falsch signalisiere Punktabzug
-    this.pointsLoseAnim.setVisible(true);
-    this.pointsLoseAnim.play('lose_points');
-    // verstecke das Sprite sobald animation fertig
-    this.pointsLoseAnim.on('animationcomplete', () => {
-      this.pointsLoseAnim.setVisible(false);
-    });
-    this.registry.set("points", this.registry.get("points") - 2);
+    const newPoints = this.registry.get("points") - 2;
+    this.registry.set("points", newPoints);
+    this.pointsDisplay.setText(newPoints);
   }
 
   // erzeugt Übergang zum nächsten Level
@@ -221,13 +244,18 @@ export default class MainGame extends Phaser.Scene {
     this.addMap();
     // verschiebe Player nach vorne hinter den foregroundLayer
     this.children.moveTo(this.diamondEmitter, this.children.getIndex(this.foregroundLayer));
+    this.children.moveTo(this.diamondDisplay, this.children.getIndex(this.foregroundLayer));
+    this.children.moveTo(this.pointsDisplay, this.children.getIndex(this.foregroundLayer));
     this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
     this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
+    this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
     // aktualisiere Quiz
     this.updateQuiz();
     this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
     this.cameras.main.setBounds(0, 0, (this.currentQuizIndex + 1) * sizes.width, sizes.height);
     this.physics.world.setBoundsCollision(true, false, false, true);
+    // verschiebe Lebenanzeige nach in den neuen Abschnitt
+    this.children.moveTo(this.livesDisplay, this.children.getIndex(this.foregroundLayer));
   }
 
   // fixiert die Levelansicht
@@ -253,7 +281,6 @@ export default class MainGame extends Phaser.Scene {
     this.landscapeLayer = this.map.createLayer("Landscape", tileset, offsetX).setScale(2).setCollision([42, 43, 44, 48, 49, 50, 51, 61, 62, 63, 64], true);
     this.foregroundLayer = this.map.createLayer("Foreground", tileset, offsetX).setScale(2);
     this.spikeGroup = this.physics.add.group({immovable: true, allowGravity: false});
-
     this.map.getObjectLayer('Objects').objects.forEach(object => {
       if (object.gid === 69) {
         // berechne x und y position
@@ -268,29 +295,5 @@ export default class MainGame extends Phaser.Scene {
           .setOffset(0, 10)
       }
     })
-  }
-  
-
-  creatAnimations() {
-    this.anims.create({
-      key: 'lose_points',
-      frames: this.anims.generateFrameNumbers('itemsSpriteSheet', { start: 44, end: 46 }),
-      frameRate: 3
-    });
-
-    this.pointsLoseAnim = this.add.sprite(sizes.width - 30, 30, 'itemsSpriteSheet', 44);
-    this.pointsLoseAnim.setVisible(false);
-    this.pointsLoseAnim.setScale(2);
-
-    this.diamondEmitter = this.add.particles(0, 0, 'itemsSpriteSheet', {
-      frame: 67,
-      speed: 100,
-      gravity: 50,
-      scale: 2,
-      duration: 100,
-      emitting: false
-    });
-
-    this.diamondEmitter.startFollow(this.player, 10, 10, true);
   }
 }
