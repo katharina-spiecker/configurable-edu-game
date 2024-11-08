@@ -170,7 +170,7 @@ export default class MainGame extends Phaser.Scene {
     if (answerIsCorrect) {
       // lösche alle Antwortboxen
       this.answerObjects.clear(true, true);
-      this.diamondParticles.start();
+      this.diamondEmitter.explode(10);
       // spiele Punkte gesammelt Musik ab
       this.coinSound.play();
       // erhöhe Punkte
@@ -220,6 +220,7 @@ export default class MainGame extends Phaser.Scene {
     // update map
     this.addMap();
     // verschiebe Player nach vorne hinter den foregroundLayer
+    this.children.moveTo(this.diamondEmitter, this.children.getIndex(this.foregroundLayer));
     this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
     this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
     // aktualisiere Quiz
@@ -281,7 +282,7 @@ export default class MainGame extends Phaser.Scene {
     this.pointsLoseAnim.setVisible(false);
     this.pointsLoseAnim.setScale(2);
 
-    this.diamondParticles = this.add.particles(0, 0, 'itemsSpriteSheet', {
+    this.diamondEmitter = this.add.particles(0, 0, 'itemsSpriteSheet', {
       frame: 67,
       speed: 100,
       gravity: 50,
@@ -290,6 +291,6 @@ export default class MainGame extends Phaser.Scene {
       emitting: false
     });
 
-    this.diamondParticles.startFollow(this.player, 10, 10, true);
+    this.diamondEmitter.startFollow(this.player, 10, 10, true);
   }
 }
