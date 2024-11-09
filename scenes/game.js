@@ -179,11 +179,11 @@ export default class MainGame extends Phaser.Scene {
         // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
         imageIndex++;
         // füge overlap detection hinzu
-        this.physics.add.overlap(this.player, answerBox, (player, answerBox) => this.onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption), null, this);
+        this.physics.add.overlap(this.player, answerBox, (player, answerBox) => this.onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption, answerSurprise), null, this);
     }
   }
 
-  onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption) {
+  onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption, answerSurprise) {
     if (answerIsCorrect) {
       // lösche alle Antwortboxen
       this.answerObjects.clear(true, true);
@@ -230,6 +230,8 @@ export default class MainGame extends Phaser.Scene {
       // lösche falsche Antwortbox, answerSurprise (Bombe) bleibt da
       answerOption.destroy();
       answerBox.destroy();
+      // falls Avatar Bombe nochmal berührt: Punktabzug
+      this.physics.add.overlap(this.player, answerSurprise, this.losePoints, null, this);
     }
   }
 
@@ -309,5 +311,15 @@ export default class MainGame extends Phaser.Scene {
           .setOffset(0, 10)
       }
     })
+  }
+
+  // TODO
+  createAnimations() {
+    this.anims.create({
+      key: 'bomb_mobing',
+      frames: this.anims.generateFrameNumbers('itemsSpriteSheet', { start: 44, end: 46 }),
+      frameRate: 1 ,
+      repeat: -1
+    });
   }
 }
