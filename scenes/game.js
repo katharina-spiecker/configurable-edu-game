@@ -67,26 +67,28 @@ export default class MainGame extends Phaser.Scene {
     this.diamondEmitter.startFollow(this.player, 10, 10, true);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
     this.cameras.main.setScroll(0, 0);
+    this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
+
+    this.setCameraAndWorldBounds();
   }
 
   update() {
-    if (this.levelTransitionActive) {
-      if (this.player.x > (this.currentQuizIndex * sizes.width)) {
-        this.stablizeLevel();
-      }
-    }
-
     if (this.cursor.up.isDown) {
       this.player.setVelocityY(-this.playerSpeedUp);
     } else if (this.cursor.down.isDown) {
       this.player.setVelocityY(this.playerSpeedDown);
     } else if (this.cursor.right.isDown) {
-      this.player.setVelocityX(this.playerSpeedX * 3);
+      this.player.setVelocityX(this.playerSpeedX);
     } else if (this.cursor.left.isDown) {
-      this.player.setVelocityX(-this.playerSpeedX * 3);
+      this.player.setVelocityX(-this.playerSpeedX);
     } else {
-      // mache Player 10% langsamer, wenn keine Taste gedrückt damit langsam anhaltend
-      this.player.setVelocityX(this.player.body.velocity.x * 0.9);
+       // falls Avatar in Wasser, treibe nach links
+      if (this.player.y > sizes.height - 72) {
+        this.player.setVelocityX(-50);
+      } else {
+        // mache Player 10% langsamer, wenn keine Taste gedrückt damit langsam anhaltend
+        this.player.setVelocityX(this.player.body.velocity.x * 0.9);
+      }
     }
   }
 
@@ -101,7 +103,7 @@ export default class MainGame extends Phaser.Scene {
   addPlayer() {
     this.playerSpeedUp = 200;
     this.playerSpeedDown = 100;
-    this.playerSpeedX = 50;
+    this.playerSpeedX = 150;
     this.player = this.physics.add.sprite(sizes.width / 3, 0, 'spriteSheet', 4); // Extract character at frame 1
     this.player.setOrigin(0.5, 0.5).setScale(2);
     // Play the animation for a specific character
@@ -113,9 +115,8 @@ export default class MainGame extends Phaser.Scene {
     // macht collision box kleiner als player
     this.player.setSize(20, 20);
     // Kamera kann nicht über den Bereich hinausgehen damit player nicht über diesen Bereich hinausgehen kann
-    this.physics.world.setBounds(0, 0, sizes.width, sizes.height - 54); // Höhe minus 54 px damit nicht tiefer als "Erde" möglich
-    this.physics.world.setBoundsCollision(true, true, false, true);
     this.player.setCollideWorldBounds(true);
+    this.physics.world.setBoundsCollision(true, true, false, true);
     // für berühren von Stacheln
     this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
     // Musik abspielen, sobald Player hinzugefügt wurde
@@ -254,8 +255,6 @@ export default class MainGame extends Phaser.Scene {
 
   // erzeugt Übergang zum nächsten Level
   transitionToNewLevel() {
-    // flag Variable, benötigt in update Funktion
-    this.levelTransitionActive = true;
     // update map
     this.addMap();
     // verschiebe Player nach vorne hinter den foregroundLayer
@@ -263,23 +262,13 @@ export default class MainGame extends Phaser.Scene {
     this.children.moveTo(this.diamondDisplay, this.children.getIndex(this.foregroundLayer));
     this.children.moveTo(this.pointsDisplay, this.children.getIndex(this.foregroundLayer));
     this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
+    this.children.moveTo(this.livesDisplay, this.children.getIndex(this.foregroundLayer));
     this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
     this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
     // aktualisiere Quiz
     this.updateQuiz();
-    this.cameras.main.startFollow(this.player, true, 1, 0, -150, 0);
-    this.cameras.main.setBounds(0, 0, (this.currentQuizIndex + 1) * sizes.width, sizes.height);
-    this.physics.world.setBoundsCollision(true, false, false, true);
-    // verschiebe Lebenanzeige nach in den neuen Abschnitt
-    this.children.moveTo(this.livesDisplay, this.children.getIndex(this.foregroundLayer));
-  }
-
-  // fixiert die Levelansicht
-  stablizeLevel() {
-    this.levelTransitionActive = false;
-    const leftLevelBound = sizes.width * this.currentQuizIndex;
-    this.physics.world.setBounds(leftLevelBound, 0, sizes.width, sizes.height - 54);
-    this.physics.world.setBoundsCollision(true, true, false, true);
+   
+    this.setCameraAndWorldBounds();
   }
 
   addMap() {
@@ -313,7 +302,6 @@ export default class MainGame extends Phaser.Scene {
     })
   }
 
-  // TODO
   createAnimations() {
     this.anims.create({
       key: 'bomb_mobing',
@@ -321,5 +309,10 @@ export default class MainGame extends Phaser.Scene {
       frameRate: 1 ,
       repeat: -1
     });
+  }
+
+  setCameraAndWorldBounds() {
+    this.cameras.main.setBounds(0, 0, (this.currentQuizIndex + 1) * sizes.width, sizes.height);
+    this.physics.world.setBounds(0, 0, sizes.width * (this.currentQuizIndex + 1), sizes.height - 15);
   }
 }
