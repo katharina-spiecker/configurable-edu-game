@@ -8,6 +8,7 @@ export default class MainGame extends Phaser.Scene {
 
   preload() {
     this.load.audio("coinSound", "../assets/audio/coin.mp3");
+    this.load.audio("backgroundMusic", "../assets/audio/jdsherbert/cosmic-star.ogg");
     this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
     this.load.audio("alienLanding", "../assets/audio/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg");
     this.load.spritesheet('itemsSpriteSheet', '../assets/kenney_pixel-platformer/Tilemap/tilemap_packed.png', {
@@ -37,16 +38,16 @@ export default class MainGame extends Phaser.Scene {
     this.coinSound = this.sound.add("coinSound");
     this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
     this.alienLanding = this.sound.add("alienLanding");
+    this.backgroundMusic = this.sound.add("backgroundMusic");
+    this.backgroundMusic.play();
+    // Spieler hinzufügen
+    this.addPlayer();
     // Erstellt Spielwelt basierend auf Tilemap
     this.tilemapKeys = ['level-1', 'level-2', 'level-3'];
     this.addMap();
-    // Spieler hinzufügen
-    this.addPlayer();
     // verschiebe Player hinter den foregroundLayer
-    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
+    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer) - 1);
     this.addQuiz();
-    // Kollision zwischen Player und Landscape Layer
-    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
     // um auf User Eingaben zu hören
     this.cursor = this.input.keyboard.createCursorKeys();
     // Anzeige Leben
@@ -117,8 +118,6 @@ export default class MainGame extends Phaser.Scene {
     // Kamera kann nicht über den Bereich hinausgehen damit player nicht über diesen Bereich hinausgehen kann
     this.player.setCollideWorldBounds(true);
     this.physics.world.setBoundsCollision(true, true, false, true);
-    // für berühren von Stacheln
-    this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
     // Musik abspielen, sobald Player hinzugefügt wurde
     this.alienLanding.play();
   }
@@ -180,11 +179,11 @@ export default class MainGame extends Phaser.Scene {
         // nächste Antwort kriegt nächstes Bild (sind in der tilemap aufsteigend sortiert)
         imageIndex++;
         // füge overlap detection hinzu
-        this.physics.add.overlap(this.player, answerBox, (player, answerBox) => this.onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption, answerSurprise), null, this);
+        this.physics.add.overlap(this.player, answerBox, () => this.onCollideWithAnswer(answerBox, answerIsCorrect, answerOption, answerSurprise), null, this);
     }
   }
 
-  onCollideWithAnswer(player, answerBox, answerIsCorrect, answerOption, answerSurprise) {
+  onCollideWithAnswer(answerBox, answerIsCorrect, answerOption, answerSurprise) {
     if (answerIsCorrect) {
       // lösche alle Antwortboxen
       this.answerObjects.clear(true, true);
@@ -192,18 +191,9 @@ export default class MainGame extends Phaser.Scene {
       // spiele Punkte gesammelt Musik ab
       this.coinSound.play();
       // erhöhe Punkte
-      const newPoints = this.registry.get("points") + 5;
+      let newPoints = this.registry.get("points") + 5;
       this.registry.set("points", newPoints);
       this.pointsDisplay.setText(newPoints);
-
-      // Schlüssel erscheint - Symbol um ins nächste Level aufzusteigen
-      const keySymbol = this.add.image(player.x + 10, player.y + 10, 'itemsSpriteSheet', 27).setScale(2);
-      this.tweens.add({
-        targets: keySymbol,      
-        x: player.x + 30,      
-        y: player.y - 20,                
-        duration: 2000 // Dauer der Animation in ms
-      });
 
       // erhöhe quiz index
       this.currentQuizIndex++;
@@ -257,17 +247,12 @@ export default class MainGame extends Phaser.Scene {
   transitionToNewLevel() {
     // update map
     this.addMap();
-    // verschiebe Player nach vorne hinter den foregroundLayer
-    this.children.moveTo(this.diamondEmitter, this.children.getIndex(this.foregroundLayer));
-    this.children.moveTo(this.diamondDisplay, this.children.getIndex(this.foregroundLayer));
-    this.children.moveTo(this.pointsDisplay, this.children.getIndex(this.foregroundLayer));
-    this.children.moveTo(this.player, this.children.getIndex(this.foregroundLayer));
-    this.children.moveTo(this.livesDisplay, this.children.getIndex(this.foregroundLayer));
-    this.physics.add.collider(this.player, this.map.getLayer("Landscape").tilemapLayer);
-    this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
-    // aktualisiere Quiz
+    // Da Layers neu hinzugefügt, sind sie jetzt alle vor Player
+    this.children.moveTo(this.backgroundLayer, 0);
+    this.children.moveTo(this.landscapeLayer, 1);
+    this.children.moveTo(this.foregroundLayer, this.children.getIndex(this.player) + 1);
+
     this.updateQuiz();
-   
     this.setCameraAndWorldBounds();
   }
 
@@ -282,7 +267,7 @@ export default class MainGame extends Phaser.Scene {
 
     const offsetX = this.currentQuizIndex * sizes.width;
     // 1. Argument name von tiled
-    this.map.createLayer("Background", backgroundTileset, offsetX).setScale(2);
+    this.backgroundLayer = this.map.createLayer("Background", backgroundTileset, offsetX).setScale(2);
     this.landscapeLayer = this.map.createLayer("Landscape", tileset, offsetX).setScale(2).setCollision([42, 43, 44, 48, 49, 50, 51, 61, 62, 63, 64], true);
     this.foregroundLayer = this.map.createLayer("Foreground", tileset, offsetX).setScale(2);
     this.spikeGroup = this.physics.add.group({immovable: true, allowGravity: false});
@@ -300,6 +285,10 @@ export default class MainGame extends Phaser.Scene {
           .setOffset(0, 10)
       }
     })
+
+    // füge Kollision hinzu
+    this.physics.add.collider(this.player, this.landscapeLayer);
+    this.physics.add.overlap(this.player, this.spikeGroup, this.losePoints, null, this);
   }
 
   createAnimations() {

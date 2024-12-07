@@ -35,23 +35,19 @@ export default class GameStart extends Phaser.Scene {
     document.querySelector("main").appendChild(this.input);
     this.input.addEventListener("input", (e) => {
       const id = e.target.value.trim();
-      // mongodb id always 24 - TODO, change to different id later
-      if (id.length === 24) {
+      // der Spielcode (uuid) ist immer genau 36 Zeichen lang
+      if (id.length === 36) {
         this.loadQuiz(id);
       } else {
-        this.text.setText("Die Spiel id ist nicht korrekt");
-        // TODO: delete once dev complete
-        this.loadQuiz("672b986a6e527f78cd516624");
+        this.text.setText("Bitte überprüfe die Spiel-ID");
       }
     })
   }
 
-  // 672b986a6e527f78cd516624
-  loadQuiz(quizId) {
-    // Füge Text Loading
+  loadQuiz(gameCode) {
     this.text.setText("Loading...");
-    // lade Spieldaten
-    fetch(`http://localhost:3000/api/topics/${quizId}`)
+    // lade Quizdaten
+    fetch(`http://localhost:3000/api/quizzes/game/${gameCode}`)
     .then(res => {
       if (!res.ok) {
         throw new Error(`Failed to fetch quiz: Error with status ${res.status}`)
@@ -60,21 +56,20 @@ export default class GameStart extends Phaser.Scene {
     })
     .then(data => {
       if (data.quiz.length === 0) {
-        this.text.setText("Das Thema muss mindestens ein Quiz enthalten.");
+        this.text.setText("Das Quiz muss mindestens eine Frage enthalten.");
         return;
       }
-      // TODO: make sure it is visible for at least 3 seconds
       this.text.destroy();
       // speichere Quizdaten, damit verfügbar in anderen Szenen
-      this.registry.set("topicName", data.topicName)
       this.registry.set("quiz", data.quiz)
       // Button zum Spielbeginn hinzufügen
-      const textBtn = this.add.text(sizes.width / 2, 300, "Start", {
-        fontSize: "25px Arial",
+      const textBtn = this.add.text(sizes.width / 2, 310, "Start", {
+        fontFamily: "Arial",
+        fontSize: "25px",
         color: "#fff",
-        backgroundColor: '#007bff',
+        backgroundColor: "#4248f5",
         padding: { x: 20, y: 10 },
-        align: 'center'
+        align: "center"
       })
       .setOrigin(0.5, 0.5)
       .setInteractive()

@@ -18,11 +18,10 @@ main {
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    padding-top: 20px;
 }
 
 #gameCanvas {
-    border: 5px solid white;
+    /* border: 5px solid white; */
     margin-top: 20px;
 }
 
