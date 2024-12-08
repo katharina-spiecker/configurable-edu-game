@@ -28,24 +28,24 @@ export default class GameStart extends Phaser.Scene {
     this.loadingAnim.setScale(5);
     this.loadingAnim.play('player_walk');
 
-    this.text = this.add.text(sizes.width / 2, 300, "Gebe den Spielcode ein", {font: "30px Arial", fill: "#ffffff"}).setOrigin(0.5, 0.5);
-    
+    this.startText = this.add.text(sizes.width / 2, 300, "Gebe den Spielcode ein", {font: "30px Arial", fill: "#ffffff"}).setOrigin(0.5, 0.5);
+    this.errorText = this.add.text(sizes.width / 2, 480, "", {font: "20px Arial", fill: "#ffffff"}).setOrigin(0.5, 0.5);
     this.input = document.createElement("input");
     this.input.id = "game-id";
     document.querySelector("main").appendChild(this.input);
     this.input.addEventListener("input", (e) => {
-      const id = e.target.value.trim();
-      // der Spielcode (uuid) ist immer genau 36 Zeichen lang
-      if (id.length === 36) {
-        this.loadQuiz(id);
+      const gameCode = e.target.value.trim();
+      // der Spielcode (uuid) ist immer genau 36 Zeichen lang und darf nur aus alphanumerischen Zeichen und "-" bestehen
+      if (/^[a-z0-9\-]{36}$/.test(gameCode)) {
+        this.loadQuiz(gameCode);
       } else {
-        this.text.setText("Bitte überprüfe die Spiel-ID");
+        this.errorText.setText("Bitte überprüfe die Spiel-ID");
       }
     })
   }
 
   loadQuiz(gameCode) {
-    this.text.setText("Loading...");
+    this.startText.setText("Loading...");
     // lade Quizdaten
     fetch(`http://localhost:3000/api/quizzes/game/${gameCode}`)
     .then(res => {
@@ -56,10 +56,11 @@ export default class GameStart extends Phaser.Scene {
     })
     .then(data => {
       if (data.quiz.length === 0) {
-        this.text.setText("Das Quiz muss mindestens eine Frage enthalten.");
+        this.errorText.setText("Das Quiz muss mindestens eine Frage enthalten.");
         return;
       }
-      this.text.destroy();
+      this.startText.setText("");
+      this.errorText.setText("");
       // speichere Quizdaten, damit verfügbar in anderen Szenen
       this.registry.set("quiz", data.quiz)
       // Button zum Spielbeginn hinzufügen
@@ -77,8 +78,7 @@ export default class GameStart extends Phaser.Scene {
       // Event Listener: bei Klick auf Button startet Spiel
       textBtn.on('pointerdown', () => {
         this.input.remove();
-        this.scene.start("MainGame")
-        // this.scene.start("GameOver");
+        this.scene.start("MainGame");
       })
     })
     .catch(err => console.error(err))
