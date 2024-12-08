@@ -11,9 +11,14 @@ export default class GameOver extends Phaser.Scene {
       frameWidth: 18,
       frameHeight: 18
     });
+    this.load.image('background', '../assets/kenney_pixel-platformer/Tiles/Backgrounds/tile_0015.png');
   }
 
   create() {
+    // Hintergrund hinzufügen
+    this.add.image(0, 0, 'background').setOrigin(0, 0).setScale(sizes.width / 24, sizes.height / 24);
+    const winText = this.add.text(sizes.width / 2, 30, '', {fontSize: "25px", fontFamily: "monospace", color: "#000000"}).setOrigin(0.5, 0.5);
+
     if (this.registry.get("quizCompleted")) {
       this.anims.create({
         key: 'finishFlag',
@@ -26,7 +31,7 @@ export default class GameOver extends Phaser.Scene {
       this.finishFlagAnim = this.add.sprite(sizes.width - 100, sizes.height - (flagPole.height * flagPole.scaleY), 'itemsSpriteSheet', 111).setScale(5);
       this.finishFlagAnim.play('finishFlag');
 
-      this.add.text(sizes.width / 2, 30, 'Congratulations!').setOrigin(0.5, 0.5);
+      winText.setText('Du hast gewonnen!');
     } else {
       this.anims.create({
         key: 'lives_lost',
@@ -37,30 +42,48 @@ export default class GameOver extends Phaser.Scene {
       // leeres Herz (Leben) anzeigen
       const livesLostAnimation = this.add.sprite(sizes.width / 2, 200, 'itemsSpriteSheet', 44).setScale(5).setOrigin(0.5, 1);
       livesLostAnimation.play('lives_lost');
-      this.add.text(sizes.width / 2, 30, 'Game Over!', {fontSize: "25px", fontFamily: "monospace"}).setOrigin(0.5, 0.5);
+      winText.setText('Game Over!');
     }
     
     const points = this.registry.get('points');
     const text = `Punkte: ${points > 0 ? points : 0}`;
-    this.add.text(sizes.width / 2, 60, text, {fontFamily: "monospace"}).setOrigin(0.5, 0.5);
+    this.add.text(sizes.width / 2, 80, text, {fontFamily: "monospace", fontSize: "25px", color: "#000000"}).setOrigin(0.5, 0.5);
 
     // Zeige Spielcharacter Animation wie in GameStart Szene
     this.playerAnim = this.add.sprite(sizes.width / 2, sizes.height, 'spriteSheet', 4).setScale(5).setOrigin(0.5, 1);
     this.playerAnim.play('player_walk');
 
-    const textBtn = this.add.text(sizes.width / 2, sizes.height / 2, "Play again", {
-      fontSize: "25px Arial",
+    const playAgain = this.add.text(sizes.width / 2, sizes.height / 2, "Nochmal spielen", {
+      fontFamily: "Arial",
+      fontSize: "25px",
       color: "#fff",
-      backgroundColor: '#007bff',
+      backgroundColor: '#4248f5',
       padding: { x: 20, y: 10 },
       align: 'center'
     })
     .setOrigin(0.5, 0.5)
     .setInteractive()
 
-    textBtn.on('pointerdown', () => {
-      this.scene.start("MainGame")
+    playAgain.on('pointerdown', () => {
+      this.scene.start("MainGame");
     })
+
+    const newGame = this.add.text(sizes.width / 2, sizes.height / 2 + 60, "Ein anderes Quiz spielen", {
+      fontFamily: "Arial",
+      fontSize: "25px",
+      color: "#fff",
+      backgroundColor: '#4248f5',
+      padding: { x: 20, y: 10 },
+      align: 'center'
+    })
+    .setOrigin(0.5, 0.5)
+    .setInteractive()
+
+    newGame.on('pointerdown', () => {
+      this.scene.start("GameStart");
+    })
+
+
 
   }
 }

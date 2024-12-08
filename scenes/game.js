@@ -7,7 +7,9 @@ export default class MainGame extends Phaser.Scene {
   }
 
   preload() {
-    this.load.audio("coinSound", "../assets/audio/coin.mp3");
+    this.load.audio("coinSound", "../assets/audio/kenney_music_jingles/jingles_STEEL16.ogg");
+    this.load.audio("winSound", "../assets/audio/kenney_music_jingles/jingles_STEEL02.ogg");
+    this.load.audio("gameOverSound", "../assets/audio/kenney_music_jingles/jingles_PIZZI07.ogg");
     this.load.audio("backgroundMusic", "../assets/audio/jdsherbert/cosmic-star.ogg");
     this.load.audio("wrongAnswerSound", "../assets/audio/kenney_sci-fi-sounds/Audio/impactMetal_002.ogg");
     this.load.audio("alienLanding", "../assets/audio/kenney_sci-fi-sounds/Audio/doorOpen_001.ogg");
@@ -35,10 +37,7 @@ export default class MainGame extends Phaser.Scene {
     // Flag Variable fürs Punkte abziehen
     this.pointsDecreaseBlocked = false;
     // Music dem Sound Manager hinzufügen
-    this.coinSound = this.sound.add("coinSound");
-    this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
-    this.alienLanding = this.sound.add("alienLanding");
-    this.backgroundMusic = this.sound.add("backgroundMusic");
+    this.addSounds();
     this.backgroundMusic.play();
     // Spieler hinzufügen
     this.addPlayer();
@@ -55,7 +54,7 @@ export default class MainGame extends Phaser.Scene {
     // Anzeige Punkte
     this.diamondDisplay = this.add.sprite(sizes.width - 70, 10, 'itemsSpriteSheet', 67).setOrigin(0.5, 0).setScale(2).setScrollFactor(0);
     this.pointsDisplay = this.add.text(sizes.width - 100, 13, "0", {font: "28px Arial", fill: "#000000"}).setOrigin(0.5, 0).setScrollFactor(0);
-
+    // Effekt wenn Punkte gesammelt
     this.diamondEmitter = this.add.particles(0, 0, 'itemsSpriteSheet', {
       frame: 67,
       speed: 100,
@@ -64,7 +63,6 @@ export default class MainGame extends Phaser.Scene {
       duration: 100,
       emitting: false
     });
-
     this.diamondEmitter.startFollow(this.player, 10, 10, true);
     // setze Anfangsposition von Kamera oben links damit das gesamte Spiel sichtbar ist
     this.cameras.main.setScroll(0, 0);
@@ -83,7 +81,7 @@ export default class MainGame extends Phaser.Scene {
     } else if (this.cursor.left.isDown) {
       this.player.setVelocityX(-this.playerSpeedX);
     } else {
-       // falls Avatar in Wasser, treibe nach links
+       // falls Avatar im Wasser ist, treibe nach links
       if (this.player.y > sizes.height - 72) {
         this.player.setVelocityX(-50);
       } else {
@@ -94,11 +92,19 @@ export default class MainGame extends Phaser.Scene {
   }
 
   gameOver() {
-    this.sound.stopAll();
-    this.questionElement.innerText = "";
-    this.answersElement.innerText = "";
-    this.quizWrapperElement.style.display = "none";
-    this.scene.start('GameOver');
+    if (this.registry.get("quizCompleted")) {
+      this.winSound.play();
+    } else {
+      this.gameOverSound.play();
+    }
+    
+    this.time.delayedCall(1000, () => {
+      this.questionElement.innerText = "";
+      this.answersElement.innerText = "";
+      this.quizWrapperElement.style.display = "none";
+      this.sound.stopAll();
+      this.scene.start('GameOver');
+    }, [], this);
   }
 
   addPlayer() {
@@ -303,5 +309,14 @@ export default class MainGame extends Phaser.Scene {
   setCameraAndWorldBounds() {
     this.cameras.main.setBounds(0, 0, (this.currentQuizIndex + 1) * sizes.width, sizes.height);
     this.physics.world.setBounds(0, 0, sizes.width * (this.currentQuizIndex + 1), sizes.height - 15);
+  }
+
+  addSounds() {
+    this.coinSound = this.sound.add("coinSound");
+    this.wrongAnswerSound = this.sound.add("wrongAnswerSound");
+    this.alienLanding = this.sound.add("alienLanding");
+    this.winSound = this.sound.add("winSound");
+    this.backgroundMusic = this.sound.add("backgroundMusic", {loop: true});
+    this.gameOverSound = this.sound.add("gameOverSound");
   }
 }
