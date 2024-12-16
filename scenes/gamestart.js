@@ -63,7 +63,7 @@ class GameStart extends Phaser.Scene {
   loadQuiz(gameCode) {
     this.startText.setText("Loading...");
     // lade Quizdaten
-    fetch(`http://localhost:3000/api/quizzes/game/${gameCode}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/quizzes/game/${gameCode}`)
     .then(res => {
       if (!res.ok) {
         throw new Error(`Failed to fetch quiz: Error with status ${res.status}`)
